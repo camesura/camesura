@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.iml
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+coverage/
+android/.gradle/
+android/local.properties
+ios/Flutter/ephemeral/
+ios/Pods/
+
+# Go
+bin/
+dist/
+*.test
+*.out
+vendor/
+
+# Generated files
+*.log
+*.tmp

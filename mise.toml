@@ -1,0 +1,59 @@
+min_version = "2026.9.1"
+
+[tools]
+flutter = "3.47.4"
+go = "1.26.2"
+
+[tasks.setup]
+description = "Install project dependencies and show platform requirements"
+run = [
+  "flutter config --no-analytics",
+  "cd mobile && flutter pub get",
+  "cd bridge && go mod download",
+  "flutter doctor -v",
+]
+
+[tasks.doctor]
+description = "Check the local Flutter toolchain"
+run = "flutter doctor -v"
+
+[tasks.mobile-format]
+description = "Check Dart formatting"
+dir = "mobile"
+run = "dart format --output=none --set-exit-if-changed ."
+
+[tasks.mobile-analyze]
+description = "Run Flutter static analysis"
+dir = "mobile"
+run = "flutter analyze"
+
+[tasks.mobile-test]
+description = "Run Flutter tests"
+dir = "mobile"
+run = "flutter test"
+
+[tasks.android-run]
+description = "Run the Flutter app on a connected Android device"
+dir = "mobile"
+run = "flutter run"
+
+[tasks.android-apk]
+description = "Build an installable release APK for internal testing"
+dir = "mobile"
+run = "flutter build apk --release"
+
+[tasks.bridge-test]
+description = "Run Go tests"
+dir = "bridge"
+run = '''
+packages="$(go list ./...)"
+if [ -z "$packages" ]; then
+  echo "No Go packages yet"
+  exit 0
+fi
+go test $packages
+'''
+
+[tasks.ci]
+description = "Run all checks used by CI"
+depends = ["mobile-format", "mobile-analyze", "mobile-test", "bridge-test"]

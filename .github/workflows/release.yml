@@ -1,0 +1,51 @@
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install project toolchain
+        uses: jdx/mise-action@v3
+        with:
+          version: 2026.9.1
+          cache: true
+
+      - name: Run checks
+        run: mise run ci
+
+      - name: Build APK
+        run: mise run android-apk
+
+      - name: Prepare release files
+        run: |
+          apk="camesura-${GITHUB_REF_NAME}-android.apk"
+          cp mobile/build/app/outputs/flutter-apk/app-release.apk "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk="camesura-${GITHUB_REF_NAME}-android.apk"
+          gh release create "$GITHUB_REF_NAME" \
+            "$apk" \
+            "$apk.sha256" \
+            --verify-tag \
+            --generate-notes \
+            --title "CameSura ${GITHUB_REF_NAME}"
