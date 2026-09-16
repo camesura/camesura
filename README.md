@@ -1,4 +1,4 @@
-# camesura
+# かめすら（CameSura）
 
 スマートフォンをトラッカーとして利用し、SlimeVR へデータを中継するためのプロジェクトです。
 
@@ -14,7 +14,7 @@ camesura/
     └── workflows/   # CI/CD
 ```
 
-現在はFlutterアプリのトップ画面と、チーム共通の開発環境・CIまでを用意しています。
+現在はFlutterアプリのトップ画面と補正準備画面、チーム共通の開発環境、CI、Android APKの自動リリースまでを用意しています。
 
 ## 初回セットアップ
 
@@ -32,7 +32,7 @@ Homebrewだけを事前に導入し、次のスクリプトを実行します。
 
 ### その他のOS／手動セットアップ
 
-Git、mise 2026.9.1以上、Android Studioを導入後、リポジトリのルートで実行します。
+Git、mise 2026.9.9以上、Android Studioを導入後、リポジトリのルートで実行します。
 
 ```sh
 mise trust
@@ -46,7 +46,7 @@ miseだけを個別に導入する場合、macOSでは次のコマンドを利�
 brew install mise
 ```
 
-`mise install`により、`mise.toml`で固定したFlutter 3.47.4とGo 1.26.2が自動的に導入されます。`mise run setup`はFlutterパッケージとGoモジュールを取得し、端末固有の不足項目を表示します。
+`mise install`により、`mise.toml`で固定したFlutter 3.47.4とGo 1.27.1が自動的に導入されます。`mise run setup`はFlutterパッケージとGoモジュールを取得し、端末固有の不足項目を表示します。
 
 ## 開発コマンド
 
@@ -78,7 +78,29 @@ mise run android-run
 
 ### エミュレーター
 
-Android StudioのDevice Managerから端末を起動して、`mise run android-run`を実行します。
+Android StudioのDevice ManagerからAndroid端末を作成・起動して、`mise run android-run`を実行します。
+
+## PCで画面をプレビューする
+
+Android Emulatorを使うと、Mac上で実際のAndroid版を確認しながら開発できます。
+
+1. Android Studioを開く
+2. `Tools` → `Device Manager`を開く
+3. `+` → `Create Virtual Device`からPixel系端末を作成する
+4. 作成した端末の再生ボタンを押す
+5. リポジトリで次を実行する
+
+```sh
+mise exec -- flutter devices
+mise run android-run
+```
+
+ターミナルで`r`を押すとHot Reload、`R`で再起動、`q`で終了します。複数端末が表示される場合は、次のようにAndroidのdevice IDを指定します。
+
+```sh
+cd mobile
+mise exec -- flutter run -d <device-id>
+```
 
 ### APKを作る
 
@@ -88,7 +110,7 @@ mise run android-apk
 
 生成先は`mobile/build/app/outputs/flutter-apk/app-release.apk`です。現在のreleaseビルドは開発用キーで署名しているため、チーム内の動作確認用です。Google Playへ公開するときは専用の署名設定を追加します。
 
-バージョンタグをpushすると、GitHub Actionsが同じmise環境でテストとAPKビルドを行い、APKとSHA-256チェックサムをGitHub Releaseへ自動添付します。
+mainのCIが成功したコミットへバージョンタグをpushすると、GitHub Actionsが同じmise環境でAPKをビルドし、APKとSHA-256チェックサムをGitHub Releaseへ自動添付します。
 
 ```sh
 git tag v0.1.0
@@ -97,15 +119,18 @@ git push origin v0.1.0
 
 ## 固定バージョン
 
-- mise 2026.9.1以上
+- mise 2026.9.9以上
 - Flutter 3.47.4 / Dart 3.13.3
-- Go 1.26.2
+- Go 1.27.1
+- Android SDK 36 / Build Tools 36.0.0
+- Android最低API 24
+- iOS最低バージョン 15.5
 
 バージョン定義は`mise.toml`を唯一の正として、GitHub Actionsでも同じ定義を利用します。
 
 ### Android の残作業
 
-Android Studioを初回起動し、SDK ManagerからAndroid SDK 36とBuild Tools 28.0.3を追加します。その後、次のコマンドでライセンス内容を確認して同意します。
+Android Studioを初回起動し、SDK ManagerからAndroid SDK 36とBuild Tools 36.0.0を追加します。その後、次のコマンドでライセンス内容を確認して同意します。
 
 ```sh
 flutter doctor --android-licenses

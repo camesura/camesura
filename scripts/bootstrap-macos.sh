@@ -21,5 +21,5 @@ mise install
 mise run setup
 
 echo
-echo "CameSura development tools are ready."
+echo "かめすら development tools are ready."
 echo "Review any remaining platform requirements shown by flutter doctor."

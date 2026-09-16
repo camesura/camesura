@@ -13,7 +13,7 @@ class CameSuraApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'CameSura',
+      title: 'かめすら',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: brandColor,
@@ -308,7 +308,7 @@ class _BrandHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'CameSura',
+              'かめすら',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: const Color(0xFF082C36),
                 fontWeight: FontWeight.w800,

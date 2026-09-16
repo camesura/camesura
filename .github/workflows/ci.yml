@@ -19,13 +19,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
 
       - name: Install project toolchain
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v4.3.0
         with:
-          version: 2026.9.1
+          version: 2026.9.9
           cache: true
+
+      - name: Restore Dart packages
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
 
       - name: Run checks
         run: mise run ci

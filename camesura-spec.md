@@ -1,11 +1,11 @@
-# CameSura MVP 仕様書
+# かめすら（CameSura）MVP仕様書
 
-最終更新: 2026-09-15
+最終更新: 2026-09-16
 対象: ハッカソン実装担当者・コーディングエージェント
 
 ## 1. プロダクト概要
 
-CameSura（カメスラ）は、スマートフォンのカメラで利用者の姿勢を認識し、SlimeVRのYaw Resetを行うのに適した姿勢か判定する補助ツールである。
+かめすら（CameSura）は、スマートフォンのカメラで利用者の姿勢を認識し、SlimeVRのYaw Resetを行うのに適した姿勢か判定する補助ツールである。日本国内の利用者を主対象とし、アプリ上の製品名と主要UIは日本語の「かめすら」で表示する。
 
 MVPでは、カメラ映像とSlimeVRのトラッカー姿勢を連続的に融合しない。利用者が補正セッションを明示的に開始した後、正面を向いて直立・静止したことを画像処理で判定し、PCへYaw Reset要求を1回だけ送る。
 
@@ -13,7 +13,7 @@ MVPでは、カメラ映像とSlimeVRのトラッカー姿勢を連続的に融�
 
 SlimeVRは利用中に方位のずれ（Yaw drift）が発生することがあり、利用者は正しい姿勢を取ってリセット操作を行う必要がある。しかし、姿勢が不適切な状態でリセットすると、その状態が基準になってしまう。
 
-CameSuraは次を可能にする。
+かめすらは次を可能にする。
 
 - スマホだけで、補正に適した姿勢か確認できる
 - 骨格表示により画像処理の結果を目視できる
@@ -64,22 +64,24 @@ bridge/  Goアプリ
 
 | 領域 | 採用技術 | 備考 |
 | --- | --- | --- |
-| モバイル | Flutter / Dart | Android・iOSを単一コードベースで実装 |
-| カメラ | Flutter `camera` | 背面カメラを既定とする |
-| 姿勢推定 | `google_mlkit_pose_detection` | ML Kitのストリームモードを使用 |
+| モバイル | Flutter 3.47.4 / Dart 3.13.3 | Android・iOSを単一コードベースで実装 |
+| カメラ | Flutter `camera` 0.12.1 | 背面カメラを既定とする |
+| 姿勢推定 | `google_mlkit_pose_detection` 0.16.1 | ML Kitのストリームモードを使用 |
 | 通信 | UDP + UTF-8 JSON | 同一LAN内、映像は送らない |
-| PC Bridge | Go | 単一バイナリとして実行 |
+| PC Bridge | Go 1.27.1 | 単一バイナリとして実行 |
+| ツール管理 | mise 2026.9.9 | FlutterとGoをリポジトリ単位で固定 |
 | SlimeVR連携 | Adapter方式 | Mockを先に完成させる |
 
 ML KitのFlutterラッパーが対象端末で動かない場合だけ、MethodChannel経由でAndroid/iOSのネイティブML Kit SDKを呼ぶ。最初から独自推論器は作らない。
 
-初期対応バージョンはAndroid API 23以上、iOS 15.5以上とする。依存バージョンはM0時点の安定版を採用し、`pubspec.lock`をコミットして固定する。
+初期対応バージョンはAndroid API 24以上、iOS 15.5以上とする。AndroidのコンパイルにはSDK 36とBuild Tools 36.0.0を使用する。Flutter、Dart、Go、miseおよび採用予定パッケージのバージョンは2026年9月16日時点の安定版であり、`mise.toml`と`pubspec.lock`をコミットして固定する。未使用のパッケージは先行追加せず、着手するマイルストーンで固定バージョンを追加する。
 
 ## 6. モノレポ構成
 
 ```text
 camesura/
 ├── README.md
+├── camesura-spec.md
 ├── mobile/
 │   ├── lib/
 │   │   ├── camera/
@@ -95,21 +97,30 @@ camesura/
 ├── protocol/
 │   ├── README.md
 │   └── examples/
-└── docs/
-    └── SPEC.md
+└── docs/            # 発表資料・構成図
 ```
 
-この仕様書はリポジトリでは `docs/SPEC.md` に配置する。
+この仕様書はリポジトリ直下の`camesura-spec.md`を正本とする。
 
 ## 7. モバイルアプリ仕様
 
 ### 7.1 画面
 
-MVPは1画面でよい。
+MVPは次の2画面とする。
 
-- カメラプレビュー
-- 骨格オーバーレイ
-- BridgeのIPアドレス入力欄
+1. トップ画面
+   - 製品名「かめすら」
+   - 「姿勢を見る → 条件を確認 → 向きを補正」の視覚的な説明
+   - カメラ映像を端末内だけで処理する旨
+   - 補正準備画面へ進むボタン
+2. 補正画面
+   - カメラプレビュー
+   - 骨格オーバーレイ
+   - Bridge接続状態とIPアドレス入力
+   - 姿勢条件、総合状態、補正操作
+
+補正画面には次を表示する。
+
 - Bridge状態: `未確認` / `最終要求に応答あり` / `タイムアウト`
 - 条件一覧
   - 全身: OK / NG
@@ -332,8 +343,10 @@ SlimeVRとの実通信方式は、実装時点のSlimeVR Serverの公式実装�
 - モノレポ構造を作る
 - ルートREADMEに目的、起動方法、構成を記載
 - FlutterとGoを個別にビルドできるCIを作る
+- miseでFlutterとGoのバージョンを固定する
+- バージョンタグからAndroid APKをGitHub Releaseへ公開する
 
-完了条件: 空のFlutterアプリとGo CLIがCIを通る。
+完了条件: FlutterアプリとGoモジュールのチェックがCIを通り、Android APKを再現可能に生成できる。
 
 ### M1: カメラと骨格表示
 
@@ -433,14 +446,18 @@ SlimeVRとの実通信方式は、実装時点のSlimeVR Serverの公式実装�
 
 次はMVP着手を妨げないため、実装中に決める。
 
-- ML Kit Flutterラッパーの採用品
+- `google_mlkit_pose_detection`の対象実機での互換性
 - 現行SlimeVR Serverへの最も安定したYaw Reset経路
 - 姿勢判定しきい値の実機調整値
-- iOSの最低対応バージョン
-- Androidの最低対応SDK
+- Google Play公開用のAndroid署名と配布方法
 
 ## 15. 参考資料
 
 - [Google ML Kit Pose Detection](https://developers.google.com/ml-kit/vision/pose-detection)
 - [Flutter camera plugin guide](https://docs.flutter.dev/cookbook/plugins/picture-using-camera)
+- [Flutter SDK archive](https://docs.flutter.dev/install/archive)
+- [Go downloads](https://go.dev/dl/)
+- [mise releases](https://github.com/jdx/mise/releases)
+- [camera package](https://pub.dev/packages/camera)
+- [google_mlkit_pose_detection package](https://pub.dev/packages/google_mlkit_pose_detection)
 - [SlimeVR Documentation](https://docs.slimevr.dev/)

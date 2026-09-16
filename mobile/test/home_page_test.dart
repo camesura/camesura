@@ -5,7 +5,7 @@ void main() {
   testWidgets('トップ画面にブランドと補正フローが表示される', (tester) async {
     await tester.pumpWidget(const CameSuraApp());
 
-    expect(find.text('CameSura'), findsOneWidget);
+    expect(find.text('かめすら'), findsOneWidget);
     expect(find.text('姿勢を見る'), findsOneWidget);
     expect(find.text('条件を確認'), findsOneWidget);
     expect(find.text('向きを補正'), findsOneWidget);

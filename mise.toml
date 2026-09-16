@@ -1,8 +1,8 @@
-min_version = "2026.9.1"
+min_version = "2026.9.9"
 
 [tools]
 flutter = "3.47.4"
-go = "1.26.2"
+go = "1.27.1"
 
 [tasks.setup]
 description = "Install project dependencies and show platform requirements"
@@ -32,6 +32,16 @@ description = "Run Flutter tests"
 dir = "mobile"
 run = "flutter test"
 
+[tasks.mobile-ci]
+description = "Run Flutter checks with a single dependency resolution"
+dir = "mobile"
+run = [
+  "flutter pub get",
+  "dart format --output=none --set-exit-if-changed .",
+  "flutter analyze --no-pub",
+  "flutter test --no-pub",
+]
+
 [tasks.android-run]
 description = "Run the Flutter app on a connected Android device"
 dir = "mobile"
@@ -56,4 +66,4 @@ go test $packages
 
 [tasks.ci]
 description = "Run all checks used by CI"
-depends = ["mobile-format", "mobile-analyze", "mobile-test", "bridge-test"]
+depends = ["mobile-ci", "bridge-test"]
