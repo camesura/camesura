@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/camesura/camesura/compare/v0.3.0...v0.3.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* keep ML Kit classes from R8 minification in release builds ([f87b27c](https://github.com/camesura/camesura/commit/f87b27c6a9d834876263f89673ac1b7274a82526))
+
 ## [0.3.0](https://github.com/camesura/camesura/compare/v0.2.0...v0.3.0) (2026-09-16)
 
 
