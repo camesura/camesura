@@ -26,13 +26,16 @@ jobs:
         with:
           version: 2026.9.9
           cache: true
+          cache_key_files: 'mise.toml'
 
       - name: Restore Dart packages
         uses: actions/cache@v6.1.0
         with:
-          path: ~/.pub-cache
+          path: |
+                ~/.pub-cache
+                ${{ runner.tool_cache }}/flutter
           key: ${{ runner.os }}-pub-${{ hashFiles('mobile/pubspec.lock') }}
-          restore-keys: ${{ runner.os }}-pub-
+          restore-keys: ${{ runner.os }}-pub
 
       - name: Run checks
         run: mise run ci
