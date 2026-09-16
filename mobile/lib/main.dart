@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'camera/pose_camera_view.dart';
+
 void main() {
   runApp(const CameSuraApp());
 }
@@ -98,7 +100,7 @@ class CalibrationPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _CameraPlaceholder(),
+                  const PoseCameraView(),
                   const SizedBox(height: 18),
                   Text(
                     '姿勢チェック',
@@ -120,107 +122,10 @@ class CalibrationPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   const _BridgeStatus(),
-                  const SizedBox(height: 22),
-                  FilledButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('カメラと姿勢判定は次の実装で接続します')),
-                      );
-                    },
-                    icon: const Icon(Icons.camera_alt_rounded),
-                    label: const Text('カメラを準備する'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(54),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CameraPlaceholder extends StatelessWidget {
-  const _CameraPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 4 / 5,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF103B45), Color(0xFF061F28)],
-          ),
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Stack(
-          children: [
-            Center(
-              child: Container(
-                width: 150,
-                height: 260,
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFF54D7E1), width: 2),
-                  borderRadius: BorderRadius.circular(75),
-                ),
-                child: const Icon(
-                  Icons.accessibility_new_rounded,
-                  color: Color(0xFF54E1D3),
-                  size: 112,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16,
-              left: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xD91A3138),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.videocam_off_rounded,
-                      size: 17,
-                      color: Color(0xFFFFB4A8),
-                    ),
-                    SizedBox(width: 7),
-                    Text(
-                      'カメラ未接続',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Positioned(
-              right: 18,
-              bottom: 16,
-              child: Icon(
-                Icons.center_focus_strong_rounded,
-                color: Color(0xFFB7CED3),
-                size: 30,
-              ),
-            ),
-          ],
         ),
       ),
     );

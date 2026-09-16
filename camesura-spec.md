@@ -76,6 +76,8 @@ ML KitのFlutterラッパーが対象端末で動かない場合だけ、MethodC
 
 初期対応バージョンはAndroid API 24以上、iOS 15.5以上とする。AndroidのコンパイルにはSDK 36とBuild Tools 36.0.0を使用する。Flutter、Dart、Go、miseおよび採用予定パッケージのバージョンは2026年9月16日時点の安定版であり、`mise.toml`と`pubspec.lock`をコミットして固定する。未使用のパッケージは先行追加せず、着手するマイルストーンで固定バージョンを追加する。
 
+AndroidではML Kitが推移依存として持ち込む古いWorkManager 2.7.0と現在のR8最適化が競合するため、アプリ側でAndroidX WorkManager 2.11.2へ固定する。WorkManager 2.11.2の最低要件はAndroid API 23であり、本アプリの最低API 24を維持できる。
+
 ## 6. モノレポ構成
 
 ```text

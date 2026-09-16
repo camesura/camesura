@@ -1,14 +1,17 @@
 name: camesura
 description: "SlimeVRのYaw Resetを正しい姿勢で行うための補助アプリ。"
 publish_to: 'none'
-version: 0.1.1+2
+version: 0.2.0+3
 
 environment:
   sdk: ^3.13.3
 
 dependencies:
+  camera: 0.12.1
   flutter:
     sdk: flutter
+  google_mlkit_commons: 0.13.0
+  google_mlkit_pose_detection: 0.16.1
 
 dev_dependencies:
   flutter_test:

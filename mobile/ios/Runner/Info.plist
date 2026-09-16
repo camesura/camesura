@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>姿勢を端末内で確認するためにカメラを使用します。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>PC上のかめすらBridgeと通信するためにローカルネットワークを使用します。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

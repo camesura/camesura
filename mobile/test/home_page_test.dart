@@ -1,4 +1,5 @@
 import 'package:camesura/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -16,10 +17,11 @@ void main() {
     await tester.pumpWidget(const CameSuraApp());
 
     await tester.tap(find.text('補正をはじめる'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('補正準備'), findsOneWidget);
-    expect(find.text('カメラ未接続'), findsOneWidget);
+    expect(find.byKey(const Key('pose-camera-view')), findsOneWidget);
     expect(find.text('Bridge  未接続'), findsOneWidget);
   });
 }

@@ -47,3 +47,12 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // ML Kit pose detection still brings WorkManager 2.7 transitively. That
+    // version loses WorkDatabase_Impl under current R8 optimization and makes
+    // release builds crash before Flutter starts. Keep the transitive API on
+    // the current stable, Android API 23+ compatible line.
+    implementation("androidx.work:work-runtime:2.11.2")
+    implementation("androidx.work:work-multiprocess:2.11.2")
+}
