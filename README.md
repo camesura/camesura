@@ -114,12 +114,19 @@ mise run android-apk
 
 生成先は`mobile/build/app/outputs/flutter-apk/app-release.apk`です。現在のreleaseビルドは開発用キーで署名しているため、チーム内の動作確認用です。Google Playへ公開するときは専用の署名設定を追加します。
 
-mainのCIが成功したコミットへバージョンタグをpushすると、GitHub Actionsが同じmise環境でAPKをビルドし、APKとSHA-256チェックサムをGitHub Releaseへ自動添付します。
+### リリース（Release Please）
 
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
+mainへのコミットは[Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/)に従います。「リリースしたい」「リリースバージョンを作りたい」と都度判断する代わりに、機能・修正のマージだけでリリース候補が自動で積み上がり、タイミングを選んでマージするだけで公開できます。
+
+- `fix:` は patch（0.2.0 → 0.2.1）
+- `feat:` は minor（0.2.0 → 0.3.0）
+- `!` / `BREAKING CHANGE` は major
+
+mainへpushするとGitHub Actionsがリリース候補PRを自動で開きます。このPRはpubspec.yamlのバージョンとCHANGELOG.md、`.release-please-manifest.json`を更新するもので、マージするとバージョンタグ`v*`とGitHub Releaseが作成され、同じmise環境でビルドしたAPKとSHA-256チェックサムが自動で添付されます。タグの手動pushは不要です。
+
+pubspec.yamlの`+ビルド番号`（AndroidのversionCode）はリリースのたびに自動でインクリメントされます。
+
+> **補足**: 標準では`GITHUB_TOKEN`を使うため、Release Pleaseが作成したPR／Releaseをトリガーにした他workflow（CIなど）は実行されません。リリースPRでもCIを回したい場合は、PATをsecretへ登録しworkflowの`token`へ渡してください。また、リポジトリ設定で「Allow GitHub Actions to create and approve pull requests」を有効にする必要があります。
 
 ## 固定バージョン
 

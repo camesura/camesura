@@ -2,23 +2,42 @@ name: Release Android APK
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      release_created: ${{ steps.release.outputs['mobile--release_created'] }}
+      tag_name: ${{ steps.release.outputs['mobile--tag_name'] }}
+    steps:
+      - name: Create or update release PR / GitHub Release
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-apk:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout released tag
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Install project toolchain
         uses: jdx/mise-action@v4.3.0
@@ -40,19 +59,17 @@ jobs:
         run: mise run android-apk
 
       - name: Prepare release files
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          apk="camesura-${GITHUB_REF_NAME}-android.apk"
+          apk="camesura-${TAG_NAME}-android.apk"
           cp mobile/build/app/outputs/flutter-apk/app-release.apk "$apk"
           sha256sum "$apk" > "$apk.sha256"
 
-      - name: Create GitHub Release
+      - name: Upload assets to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          apk="camesura-${GITHUB_REF_NAME}-android.apk"
-          gh release create "$GITHUB_REF_NAME" \
-            "$apk" \
-            "$apk.sha256" \
-            --verify-tag \
-            --generate-notes \
-            --title "かめすら ${GITHUB_REF_NAME}"
+          apk="camesura-${TAG_NAME}-android.apk"
+          gh release upload "$TAG_NAME" "$apk" "$apk.sha256" --clobber

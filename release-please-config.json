@@ -1,0 +1,10 @@
+{
+  "packages": {
+    "mobile": {
+      "release-type": "dart",
+      "package-name": "camesura",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
