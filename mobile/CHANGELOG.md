@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/camesura/camesura/compare/v0.4.0...v0.5.0) (2026-09-17)
+
+
+### できるようになったこと
+
+* 正面を向いて静止するとYawリセットが自動でできるようになりました ([586ab62](https://github.com/camesura/camesura/commit/586ab62a7a6d202b81d0119f47d87dada500ed7f))
+
+
+### 修正
+
+* keep pose detection responsive with bridge enabled ([85fb997](https://github.com/camesura/camesura/commit/85fb997533a0bb15b25f90dd4990a2d979f1d8e2))
+
 ## [0.4.0](https://github.com/camesura/camesura/compare/v0.3.1...v0.4.0) (2026-09-17)
 
 
