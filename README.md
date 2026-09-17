@@ -56,6 +56,7 @@ mise run mobile-format   # Dartフォーマットの確認
 mise run mobile-analyze  # Flutter静的解析
 mise run mobile-test     # Flutterテスト
 mise run bridge-test     # Goテスト
+mise run bridge-run      # Bridgeを起動（Mock Adapter）
 mise run android-run     # 接続したAndroid端末で起動
 mise run android-apk     # 動作確認用リリースAPKを生成
 mise run ci              # CIと同じ全チェック
