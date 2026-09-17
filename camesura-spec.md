@@ -17,7 +17,7 @@
 
 1. PCでSlimeVR ServerとCameSura Bridgeを起動する
 2. SlimeVRの通常セットアップを完了し、少なくとも一度Full Resetする
-3. スマートフォンでBridgeのIPアドレスを設定する
+3. スマートフォンでBridgeを自動検出する（見つからない場合はIPアドレスを手入力する）
 4. 全身が映る位置へスマートフォンを縦向きで固定する
 5. 監視画面を開始する
 
@@ -56,7 +56,7 @@ Yaw Resetは、SlimeVR上でFull Resetが済んだセッションの方位ずれ
 - インターネット経由の接続
 - アカウント、クラウド保存、映像保存
 - VRChatとの直接連携
-- Bridgeの自動探索とQR接続
+- QR接続
 
 ## 4. システム構成
 
@@ -186,7 +186,7 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 - Encoding: UTF-8 JSON object
 - 最大データグラム: 4 KiB
 - Protocol version: `1`
-- 接続先IPは初回設定で手入力する
+- 接続先は7.4の自動検出で選ぶ。見つからない場合はIPを手入力する
 - 要求を同じ`request_id`で3回、100ms間隔で送る
 - 送信用socketで2秒間応答を待つ
 
@@ -205,13 +205,15 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 }
 ```
 
-`confidence`は必要な13点の信頼度の最小値とする。Bridgeは次を検証する。
+`confidence`は必要な13点の信頼度の最小値とする。
+
+開発用に、監視画面の「リセット」（Full Reset）と「Yawリセット」ボタンからSlimeVRと同じ3秒カウントダウン後に送る手動要求も扱う。手動要求に限り`reset = "full"`を使える。手動要求は`pose = "manual"`、`stable_ms`にカウントダウン長（3000）、`confidence = 0.0`を入れる。Bridgeは次を検証する。
 
 - `version == 1`
 - `type == "reset_request"`
 - `request_id`と`device_id`が空でない
-- `reset == "yaw"`
-- `pose == "a_pose"`
+- `reset == "yaw"`または`reset == "full"`
+- `pose == "a_pose"`または`pose == "manual"`
 - `stable_ms >= 2000`
 - `0.0 <= confidence <= 1.0`
 
@@ -231,7 +233,19 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 
 `status`は`ok`または`error`。`code`は少なくとも`reset_finished`、`invalid_request`、`unsupported_version`、`cooldown`、`slimevr_unavailable`、`slimevr_timeout`、`adapter_error`を扱う。
 
+接続確認には`{"version": 1, "type": "ping", "request_id": "..."}`を送り、Bridgeは`type = "pong"`、`code = "bridge_ready"`の結果形式で応答する。
+
 Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッシュした同じ結果を送信元へ返す。壊れたJSONやrequest_idを特定できない要求には応答せず、警告ログだけを残す。
+
+### 7.4 Bridgeの自動検出
+
+- アプリは`{"version": 1, "type": "discover", "request_id": "..."}`を送る
+- 送信先は`255.255.255.255:39500`へのブロードキャストと、端末自身の各IPv4アドレスが属する/24内の全ホストへのユニキャスト
+  - iOSはブロードキャストにmulticast entitlementが必要なため、ユニキャスト探索を必須とする
+  - 携帯回線・VPNのインターフェースは探索対象から外す
+- Bridgeは`type = "announce"`、`name`（ホスト名）付きで送信元へ応答する
+- 1件ならそのBridgeを自動選択し、複数なら一覧から選ばせる
+- 監視画面を開いたとき、保存済みBridgeに応答がなければ自動で再検出する
 
 ## 8. Go BridgeとSlimeVR
 
@@ -240,14 +254,13 @@ Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッ�
 GoからSlimeVR Serverへ直接通信できる。
 
 調査対象のSlimeVR Server v21.1.0はTCPポート`21110`でRFC 6455 WebSocketを待ち受け、バイナリフレームとしてSolarXR ProtocolのFlatBuffers `MessageBundle`を受け取る。RPCにはYaw Reset用の`ResetRequest`と完了通知の`ResetResponse`が定義されている。
-
 これはHTTP/JSON APIではない。SlimeVRのトラッカー向けUDPプロトコルへリセット命令を送る方式でもない。
 
 ### 8.2 SlimeVR Adapter
 
 ```go
 type ResetAdapter interface {
-	YawReset(ctx context.Context) error
+	Reset(ctx context.Context, kind Kind) error // kind: yaw / full
 }
 ```
 
@@ -256,9 +269,9 @@ type ResetAdapter interface {
 1. 同一PCの`ws://127.0.0.1:21110`へ接続する
 2. 公式`all.fbs`から生成したGo型でFlatBuffersを構築する
 3. `MessageBundle.rpc_msgs`へ、`tx_id`付き`ResetRequest`を1件入れる
-4. `reset_type = Yaw`、`body_parts = []`、`delay = 0`を指定する
+4. `reset_type = Yaw`（手動Full Resetでは`Full`）、`body_parts = []`、`delay = 0`を指定する
 5. バイナリWebSocketフレームとして送る
-6. 同じ`tx_id`、`reset_type = Yaw`、`status = FINISHED`の`ResetResponse`を待つ
+6. 同じ`tx_id`、同じ`reset_type`、`status = FINISHED`の`ResetResponse`を待つ
 7. タイムアウトまたは切断をエラーとしてモバイルへ返す
 
 SlimeVRの既定ディレイは使わない。モバイル側でAポーズを2秒確認した後に送るため、要求の`delay`は明示的に0秒とする。

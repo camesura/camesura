@@ -52,6 +52,11 @@ description = "Build an installable release APK for internal testing"
 dir = "mobile"
 run = "flutter build apk --release"
 
+[tasks.bridge-run]
+description = "Run the Bridge with the Mock adapter (UDP :39500)"
+dir = "bridge"
+run = "go run ./cmd/camesura-bridge"
+
 [tasks.bridge-test]
 description = "Run Go tests"
 dir = "bridge"
