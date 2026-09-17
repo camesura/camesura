@@ -22,8 +22,8 @@ class BridgeResetPanel extends StatefulWidget {
   final BridgeClient client;
   final BridgeDiscovery discovery;
 
-  /// Checks the saved Bridge on open and searches the LAN when it is missing
-  /// or unreachable.
+  /// Checks the saved Bridge on open. A full LAN sweep is intentionally only
+  /// started by the user so it cannot compete with live pose detection.
   final bool autoConnect;
 
   @override
@@ -54,9 +54,6 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     setState(() => _settings = settings);
     if (!widget.autoConnect) return;
     if (settings.host.isNotEmpty) await _checkConnection();
-    if (mounted && _bridgeState != _BridgeState.available) {
-      await _searchBridges(interactive: false);
-    }
   }
 
   /// Finds Bridges on the LAN. One result is selected automatically; several

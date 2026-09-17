@@ -5,7 +5,7 @@
 
 ## 1. 目的
 
-かめすらは、スマートフォンの背面カメラで利用者のAポーズを検出し、適切な姿勢が安定したときだけSlimeVR ServerへYaw Resetを要求する補助ツールである。
+かめすらは、スマートフォンのカメラ（背面・前面切り替え可）で利用者のAポーズを検出し、適切な姿勢が安定したときだけSlimeVR ServerへYaw Resetを要求する補助ツールである。
 
 初回設定後、利用者はスマートフォンへ触れない。カメラの前でAポーズを取ること自体を補正開始の意思表示とし、条件成立時に1回だけYaw Resetする。
 
@@ -17,7 +17,7 @@
 
 1. PCでSlimeVR ServerとCameSura Bridgeを起動する
 2. SlimeVRの通常セットアップを完了し、少なくとも一度Full Resetする
-3. スマートフォンでBridgeを自動検出する（見つからない場合はIPアドレスを手入力する）
+3. スマートフォンの初回設定で「探す」を押してBridgeを検出する（見つからない場合はIPアドレスを手入力する）
 4. 全身が映る位置へスマートフォンを縦向きで固定する
 5. 監視画面を開始する
 
@@ -38,7 +38,7 @@ Yaw Resetは、SlimeVR上でFull Resetが済んだセッションの方位ずれ
 ### 必須
 
 - FlutterでAndroidとiOSへ対応する
-- 背面カメラのプレビューと1人分の骨格を表示する
+- カメラのプレビューと1人分の骨格を表示する（背面カメラを既定とし、前面カメラへ切り替え可能）
 - Aポーズの成立条件と不足条件をリアルタイム表示する
 - Aポーズが2秒間安定したときだけ要求を1回送る
 - 同じポーズを維持している間は再送しない
@@ -82,7 +82,7 @@ Go Bridge
 | 領域 | 採用技術 | 方針 |
 | --- | --- | --- |
 | モバイル | Flutter / Dart | Android・iOSを単一コードベースで実装 |
-| カメラ | Flutter `camera` | 背面カメラ、縦向き |
+| カメラ | Flutter `camera` | 背面/前面切り替え可、縦向き |
 | 姿勢推定 | ML Kit Pose Detection | ストリームモード、端末内処理 |
 | Mobile → Bridge | UDP + UTF-8 JSON | 同一LAN限定 |
 | Bridge | Go | 単一バイナリ |
@@ -237,7 +237,7 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 
 Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッシュした同じ結果を送信元へ返す。壊れたJSONやrequest_idを特定できない要求には応答せず、警告ログだけを残す。
 
-### 7.4 Bridgeの自動検出
+### 7.4 Bridgeの検出
 
 - アプリは`{"version": 1, "type": "discover", "request_id": "..."}`を送る
 - 送信先は`255.255.255.255:39500`へのブロードキャストと、端末自身の各IPv4アドレスが属する/24内の全ホストへのユニキャスト
@@ -245,7 +245,8 @@ Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッ�
   - 携帯回線・VPNのインターフェースは探索対象から外す
 - Bridgeは`type = "announce"`、`name`（ホスト名）付きで送信元へ応答する
 - 1件ならそのBridgeを自動選択し、複数なら一覧から選ばせる
-- 監視画面を開いたとき、保存済みBridgeに応答がなければ自動で再検出する
+- `/24`全体の探索は初回設定の「探す」を押したときだけ実行する
+- 監視画面を開いたときは保存済みBridgeへの接続確認だけを行い、姿勢推定とLAN探索を競合させない
 
 ## 8. Go BridgeとSlimeVR
 
@@ -254,6 +255,7 @@ Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッ�
 GoからSlimeVR Serverへ直接通信できる。
 
 調査対象のSlimeVR Server v21.1.0はTCPポート`21110`でRFC 6455 WebSocketを待ち受け、バイナリフレームとしてSolarXR ProtocolのFlatBuffers `MessageBundle`を受け取る。RPCにはYaw Reset用の`ResetRequest`と完了通知の`ResetResponse`が定義されている。
+
 これはHTTP/JSON APIではない。SlimeVRのトラッカー向けUDPプロトコルへリセット命令を送る方式でもない。
 
 ### 8.2 SlimeVR Adapter

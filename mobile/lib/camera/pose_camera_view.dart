@@ -10,6 +10,11 @@ import 'camera_image_converter.dart';
 
 enum _CameraViewState { initializing, streaming, permissionDenied, unavailable }
 
+// ML Kit recommends using the smallest input that still keeps the subject large
+// enough for real-time pose detection. `high` made every inference unnecessarily
+// expensive and reduced the rate at which the skeleton overlay could update.
+const poseCameraResolutionPreset = ResolutionPreset.medium;
+
 class PoseCameraView extends StatefulWidget {
   const PoseCameraView({super.key});
 
@@ -32,6 +37,8 @@ class _PoseCameraViewState extends State<PoseCameraView>
   bool _isProcessing = false;
   bool _isDisposed = false;
   int _cameraGeneration = 0;
+  CameraLensDirection _lensDirection = CameraLensDirection.back;
+  bool _hasFrontCamera = false;
 
   @override
   void initState() {
@@ -72,17 +79,25 @@ class _PoseCameraViewState extends State<PoseCameraView>
     CameraController? newController;
     try {
       final cameras = await availableCameras();
-      final backCameras = cameras.where(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
+      _hasFrontCamera = cameras.any(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
       );
-      if (backCameras.isEmpty) {
-        throw CameraException('CameraUnavailable', '背面カメラが見つかりません');
+      final matchingCameras = cameras.where(
+        (camera) => camera.lensDirection == _lensDirection,
+      );
+      if (matchingCameras.isEmpty) {
+        throw CameraException(
+          'CameraUnavailable',
+          _lensDirection == CameraLensDirection.back
+              ? '背面カメラが見つかりません'
+              : '前面カメラが見つかりません',
+        );
       }
 
-      final camera = backCameras.first;
+      final camera = matchingCameras.first;
       newController = CameraController(
         camera,
-        ResolutionPreset.high,
+        poseCameraResolutionPreset,
         enableAudio: false,
         imageFormatGroup: Platform.isAndroid
             ? ImageFormatGroup.nv21
@@ -171,6 +186,15 @@ class _PoseCameraViewState extends State<PoseCameraView>
     } finally {
       _isProcessing = false;
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_isInitializing || _isDisposed) return;
+    _lensDirection = _lensDirection == CameraLensDirection.back
+        ? CameraLensDirection.front
+        : CameraLensDirection.back;
+    await _releaseCamera();
+    await _initializeCamera();
   }
 
   Future<void> _releaseCamera() async {
@@ -267,13 +291,15 @@ class _PoseCameraViewState extends State<PoseCameraView>
           children: [
             Positioned.fromRect(
               rect: previewRect,
-              child: CameraPreview(controller),
+              child: RepaintBoundary(child: CameraPreview(controller)),
             ),
             if (_poseFrame case final frame?)
               Positioned.fromRect(
                 rect: previewRect,
                 child: IgnorePointer(
-                  child: CustomPaint(painter: PoseSkeletonPainter(frame)),
+                  child: RepaintBoundary(
+                    child: CustomPaint(painter: PoseSkeletonPainter(frame)),
+                  ),
                 ),
               ),
             Positioned(
@@ -281,6 +307,12 @@ class _PoseCameraViewState extends State<PoseCameraView>
               left: 14,
               child: _DetectionBadge(detected: _poseFrame != null),
             ),
+            if (_hasFrontCamera)
+              Positioned(
+                top: 14,
+                right: 14,
+                child: _CameraSwitchButton(onPressed: _switchCamera),
+              ),
             const Positioned(
               left: 16,
               right: 16,
@@ -335,6 +367,25 @@ class _DetectionBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CameraSwitchButton extends StatelessWidget {
+  const _CameraSwitchButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xD91A3138),
+      shape: const CircleBorder(),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white),
+        tooltip: 'カメラを切り替え',
       ),
     );
   }
