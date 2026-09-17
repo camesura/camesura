@@ -1,4 +1,4 @@
-// Command camesura-bridge relays Yaw Reset requests from the mobile app.
+// Command camesura-bridge relays Yaw/Full Reset requests from the mobile app.
 package main
 
 import (

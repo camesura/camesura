@@ -40,12 +40,13 @@ void main() {
         'status': 'ok',
         'code': 'reset_finished',
         'adapter': 'mock',
-        'message': 'Yaw reset finished',
+        'message': 'Reset finished',
       },
     );
     final client = BridgeClient(port: fakeBridge.port);
 
-    final response = await client.requestYawReset(
+    final response = await client.requestReset(
+      kind: ResetKind.full,
       host: '127.0.0.1',
       deviceId: 'device-1',
       pose: 'manual',
@@ -56,7 +57,7 @@ void main() {
     expect(response.isOk, isTrue);
     expect(response.adapter, 'mock');
     expect(received.first, containsPair('type', 'reset_request'));
-    expect(received.first, containsPair('reset', 'yaw'));
+    expect(received.first, containsPair('reset', 'full'));
     expect(received.first, containsPair('stable_ms', 3000));
   });
 

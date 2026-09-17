@@ -13,7 +13,8 @@ const (
 	TypePing         = "ping"
 	TypePong         = "pong"
 
-	ResetYaw = "yaw"
+	ResetYaw  = "yaw"
+	ResetFull = "full"
 
 	PoseAPose  = "a_pose"
 	PoseManual = "manual"
@@ -82,7 +83,7 @@ func ValidateResetRequest(r Request) *ValidationError {
 		return invalid("request_id is empty")
 	case r.DeviceID == "":
 		return invalid("device_id is empty")
-	case r.Reset != ResetYaw:
+	case r.Reset != ResetYaw && r.Reset != ResetFull:
 		return invalid("unsupported reset %q", r.Reset)
 	case r.Pose != PoseAPose && r.Pose != PoseManual:
 		return invalid("unsupported pose %q", r.Pose)

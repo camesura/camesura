@@ -25,10 +25,11 @@ func TestValidateResetRequest(t *testing.T) {
 	}{
 		{"valid a_pose", func(*Request) {}, ""},
 		{"valid manual", func(r *Request) { r.Pose = PoseManual }, ""},
+		{"valid full", func(r *Request) { r.Reset = ResetFull }, ""},
 		{"version", func(r *Request) { r.Version = 2 }, CodeUnsupportedVersion},
 		{"type", func(r *Request) { r.Type = "hello" }, CodeInvalidRequest},
 		{"device_id", func(r *Request) { r.DeviceID = "" }, CodeInvalidRequest},
-		{"reset", func(r *Request) { r.Reset = "full" }, CodeInvalidRequest},
+		{"reset", func(r *Request) { r.Reset = "mounting" }, CodeInvalidRequest},
 		{"pose", func(r *Request) { r.Pose = "t_pose" }, CodeInvalidRequest},
 		{"stable_ms", func(r *Request) { r.StableMS = 1999 }, CodeInvalidRequest},
 		{"missing confidence", func(r *Request) { r.Confidence = nil }, CodeInvalidRequest},

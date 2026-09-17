@@ -1,6 +1,6 @@
 # bridge
 
-スマートフォンからのYaw Reset要求をUDP（既定ポート`39500`）で受け取り、SlimeVR Serverへ中継するGoアプリケーションです。`ResetAdapter`はMock版と、SlimeVR Server（`ws://127.0.0.1:21110`）へSolarXR Protocol（WebSocket + FlatBuffers）で`ResetRequest`を送るSlimeVR版の2つを実装しています。
+スマートフォンからのリセット（Full Reset / Yaw Reset）要求をUDP（既定ポート`39500`）で受け取り、SlimeVR Serverへ中継するGoアプリケーションです。`ResetAdapter`はMock版と、SlimeVR Server（`ws://127.0.0.1:21110`）へSolarXR Protocol（WebSocket + FlatBuffers）で`ResetRequest`を送るSlimeVR版の2つを実装しています。
 
 ## Macで起動する
 
@@ -12,7 +12,7 @@ mise run bridge-run
 cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter mock
 ```
 
-SlimeVR Adapter（実際にYaw Resetを送る場合。事前にSlimeVR ServerでFull Resetを済ませておくこと）:
+SlimeVR Adapter（実際にSlimeVRへリセットを送る場合）:
 
 ```sh
 cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter slimevr

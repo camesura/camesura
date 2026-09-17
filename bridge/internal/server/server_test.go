@@ -17,14 +17,16 @@ import (
 
 type countingAdapter struct {
 	calls atomic.Int32
+	kinds sync.Map // resetadapter.Kind -> struct{}
 	delay time.Duration
 	err   error
 }
 
 func (a *countingAdapter) Name() string { return "test" }
 
-func (a *countingAdapter) YawReset(context.Context) error {
+func (a *countingAdapter) Reset(_ context.Context, kind resetadapter.Kind) error {
 	a.calls.Add(1)
+	a.kinds.Store(kind, struct{}{})
 	time.Sleep(a.delay)
 	return a.err
 }
@@ -223,5 +225,21 @@ func TestAdapterErrorsAreMapped(t *testing.T) {
 	res, _ := receive(t, client)
 	if res.Status != protocol.StatusError || res.Code != protocol.CodeSlimeVRUnavailable {
 		t.Fatalf("unexpected result: %+v", res)
+	}
+}
+
+func TestFullResetIsPassedToAdapter(t *testing.T) {
+	adapter := &countingAdapter{}
+	addr := startServer(t, adapter, &fakeClock{now: time.Unix(0, 0)})
+	client := newClient(t)
+
+	req := resetRequest("full-1")
+	req.Reset = protocol.ResetFull
+	sendJSON(t, client, addr, req)
+	if res, _ := receive(t, client); res.Code != protocol.CodeResetFinished {
+		t.Fatalf("full reset: %+v", res)
+	}
+	if _, ok := adapter.kinds.Load(resetadapter.KindFull); !ok {
+		t.Fatal("adapter did not receive a full reset")
 	}
 }

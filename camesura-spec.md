@@ -207,12 +207,12 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 
 `confidence`は必要な13点の信頼度の最小値とする。
 
-開発用に、監視画面の「Yaw Reset」ボタンからSlimeVRと同じ3秒カウントダウン後に送る手動要求も扱う。手動要求は`pose = "manual"`、`stable_ms`にカウントダウン長（3000）、`confidence = 0.0`を入れる。Bridgeは次を検証する。
+開発用に、監視画面の「リセット」（Full Reset）と「Yawリセット」ボタンからSlimeVRと同じ3秒カウントダウン後に送る手動要求も扱う。手動要求に限り`reset = "full"`を使える。手動要求は`pose = "manual"`、`stable_ms`にカウントダウン長（3000）、`confidence = 0.0`を入れる。Bridgeは次を検証する。
 
 - `version == 1`
 - `type == "reset_request"`
 - `request_id`と`device_id`が空でない
-- `reset == "yaw"`
+- `reset == "yaw"`または`reset == "full"`
 - `pose == "a_pose"`または`pose == "manual"`
 - `stable_ms >= 2000`
 - `0.0 <= confidence <= 1.0`
@@ -251,7 +251,7 @@ GoからSlimeVR Serverへ直接通信できる。
 
 ```go
 type ResetAdapter interface {
-	YawReset(ctx context.Context) error
+	Reset(ctx context.Context, kind Kind) error // kind: yaw / full
 }
 ```
 
@@ -260,9 +260,9 @@ type ResetAdapter interface {
 1. 同一PCの`ws://127.0.0.1:21110`へ接続する
 2. 公式`all.fbs`から生成したGo型でFlatBuffersを構築する
 3. `MessageBundle.rpc_msgs`へ、`tx_id`付き`ResetRequest`を1件入れる
-4. `reset_type = Yaw`、`body_parts = []`、`delay = 0`を指定する
+4. `reset_type = Yaw`（手動Full Resetでは`Full`）、`body_parts = []`、`delay = 0`を指定する
 5. バイナリWebSocketフレームとして送る
-6. 同じ`tx_id`、`reset_type = Yaw`、`status = FINISHED`の`ResetResponse`を待つ
+6. 同じ`tx_id`、同じ`reset_type`、`status = FINISHED`の`ResetResponse`を待つ
 7. タイムアウトまたは切断をエラーとしてモバイルへ返す
 
 SlimeVRの既定ディレイは使わない。モバイル側でAポーズを2秒確認した後に送るため、要求の`delay`は明示的に0秒とする。

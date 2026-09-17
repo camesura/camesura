@@ -32,7 +32,7 @@ type SlimeVR struct {
 
 	mu       sync.Mutex
 	conn     *websocket.Conn
-	waiters  map[uint32]chan struct{}
+	waiters  map[uint32]waiter
 	statuses map[uint32]rpc.ResetStatus
 }
 
@@ -46,14 +46,18 @@ func NewSlimeVR(url string, logger *slog.Logger) *SlimeVR {
 	return &SlimeVR{
 		URL:      url,
 		Logger:   logger,
-		waiters:  map[uint32]chan struct{}{},
+		waiters:  map[uint32]waiter{},
 		statuses: map[uint32]rpc.ResetStatus{},
 	}
 }
 
 func (s *SlimeVR) Name() string { return "slimevr" }
 
-func (s *SlimeVR) YawReset(ctx context.Context) error {
+func (s *SlimeVR) Reset(ctx context.Context, kind Kind) error {
+	resetType, err := solarXRResetType(kind)
+	if err != nil {
+		return err
+	}
 	conn, err := s.connection(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
@@ -62,7 +66,7 @@ func (s *SlimeVR) YawReset(ctx context.Context) error {
 	txID := rand.Uint32()
 	done := make(chan struct{})
 	s.mu.Lock()
-	s.waiters[txID] = done
+	s.waiters[txID] = waiter{done: done, resetType: resetType}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -71,7 +75,7 @@ func (s *SlimeVR) YawReset(ctx context.Context) error {
 		s.mu.Unlock()
 	}()
 
-	if err := s.sendResetRequest(conn, txID); err != nil {
+	if err := s.sendResetRequest(conn, txID, resetType); err != nil {
 		s.dropConnection(conn)
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
@@ -131,11 +135,11 @@ func (s *SlimeVR) dropConnection(conn *websocket.Conn) {
 	_ = conn.Close()
 }
 
-func (s *SlimeVR) sendResetRequest(conn *websocket.Conn, txID uint32) error {
+func (s *SlimeVR) sendResetRequest(conn *websocket.Conn, txID uint32, resetType rpc.ResetType) error {
 	builder := flatbuffers.NewBuilder(64)
 
 	rpc.ResetRequestStart(builder)
-	rpc.ResetRequestAddResetType(builder, rpc.ResetTypeYaw)
+	rpc.ResetRequestAddResetType(builder, resetType)
 	rpc.ResetRequestAddDelay(builder, 0)
 	resetRequest := rpc.ResetRequestEnd(builder)
 
@@ -158,7 +162,7 @@ func (s *SlimeVR) sendResetRequest(conn *websocket.Conn, txID uint32) error {
 	bundle := solarxr_protocol.MessageBundleEnd(builder)
 	builder.Finish(bundle)
 
-	s.Logger.Info("sending SlimeVR yaw reset", "tx_id", txID)
+	s.Logger.Info("sending SlimeVR reset", "tx_id", txID, "reset_type", resetType)
 	return conn.WriteMessage(websocket.BinaryMessage, builder.FinishedBytes())
 }
 
@@ -200,20 +204,19 @@ func (s *SlimeVR) handleBundle(data []byte) {
 		}
 		var resetResponse rpc.ResetResponse
 		resetResponse.Init(table.Bytes, table.Pos)
-		if resetResponse.ResetType() != rpc.ResetTypeYaw {
-			continue
-		}
 		txID := msgHeader.TxId(nil)
 		if txID == nil {
 			continue
 		}
-		s.deliver(txID.Id(), resetResponse.Status())
+		s.deliver(txID.Id(), resetResponse.ResetType(), resetResponse.Status())
 	}
 }
 
-func (s *SlimeVR) deliver(txID uint32, status rpc.ResetStatus) {
+// deliver completes the waiter whose tx_id and reset type both match.
+func (s *SlimeVR) deliver(txID uint32, resetType rpc.ResetType, status rpc.ResetStatus) {
 	s.mu.Lock()
-	done, ok := s.waiters[txID]
+	w, ok := s.waiters[txID]
+	ok = ok && w.resetType == resetType
 	if ok {
 		s.statuses[txID] = status
 	}
@@ -221,7 +224,22 @@ func (s *SlimeVR) deliver(txID uint32, status rpc.ResetStatus) {
 	if !ok || status != rpc.ResetStatusFINISHED {
 		return
 	}
-	close(done)
+	close(w.done)
+}
+
+type waiter struct {
+	done      chan struct{}
+	resetType rpc.ResetType
+}
+
+func solarXRResetType(kind Kind) (rpc.ResetType, error) {
+	switch kind {
+	case KindYaw:
+		return rpc.ResetTypeYaw, nil
+	case KindFull:
+		return rpc.ResetTypeFull, nil
+	}
+	return 0, fmt.Errorf("unsupported reset kind %q", kind)
 }
 
 // Close releases the SlimeVR connection, if any.

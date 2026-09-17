@@ -23,6 +23,8 @@ import (
 type fakeSlimeVRServer struct {
 	*httptest.Server
 	respond func(txID uint32, resetType rpc.ResetType) (rpc.ResetStatus, bool)
+	// reply chooses the reset type echoed back; defaults to the requested one.
+	reply func(txID uint32, resetType rpc.ResetType) rpc.ResetType
 }
 
 func newFakeSlimeVRServer(t *testing.T) *fakeSlimeVRServer {
@@ -67,7 +69,11 @@ func newFakeSlimeVRServer(t *testing.T) *fakeSlimeVRServer {
 				if !ok {
 					continue
 				}
-				reply := buildResetResponse(txID.Id(), req.ResetType(), status)
+				replyType := req.ResetType()
+				if fake.reply != nil {
+					replyType = fake.reply(txID.Id(), replyType)
+				}
+				reply := buildResetResponse(txID.Id(), replyType, status)
 				if err := conn.WriteMessage(websocket.BinaryMessage, reply); err != nil {
 					return
 				}
@@ -113,7 +119,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func TestSlimeVRYawResetFinishes(t *testing.T) {
+func TestSlimeVRResetFinishes(t *testing.T) {
 	fake := newFakeSlimeVRServer(t)
 	adapter := NewSlimeVR(wsURL(fake.Server), discardLogger())
 	defer adapter.Close()
@@ -121,12 +127,12 @@ func TestSlimeVRYawResetFinishes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	if err := adapter.YawReset(ctx); err != nil {
-		t.Fatalf("YawReset() = %v, want nil", err)
+	if err := adapter.Reset(ctx, KindYaw); err != nil {
+		t.Fatalf("Reset() = %v, want nil", err)
 	}
 }
 
-func TestSlimeVRYawResetTimesOut(t *testing.T) {
+func TestSlimeVRResetTimesOut(t *testing.T) {
 	fake := newFakeSlimeVRServer(t)
 	fake.respond = func(uint32, rpc.ResetType) (rpc.ResetStatus, bool) {
 		return 0, false // never reply
@@ -137,8 +143,8 @@ func TestSlimeVRYawResetTimesOut(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 
-	if err := adapter.YawReset(ctx); err != ErrTimeout {
-		t.Fatalf("YawReset() = %v, want ErrTimeout", err)
+	if err := adapter.Reset(ctx, KindYaw); err != ErrTimeout {
+		t.Fatalf("Reset() = %v, want ErrTimeout", err)
 	}
 }
 
@@ -149,9 +155,9 @@ func TestSlimeVRUnavailable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := adapter.YawReset(ctx)
+	err := adapter.Reset(ctx, KindYaw)
 	if err == nil {
-		t.Fatal("YawReset() = nil, want an error")
+		t.Fatal("Reset() = nil, want an error")
 	}
 }
 
@@ -163,10 +169,29 @@ func TestSlimeVRReusesConnectionAcrossRequests(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	if err := adapter.YawReset(ctx); err != nil {
-		t.Fatalf("first YawReset() = %v, want nil", err)
+	if err := adapter.Reset(ctx, KindYaw); err != nil {
+		t.Fatalf("first Reset() = %v, want nil", err)
 	}
-	if err := adapter.YawReset(ctx); err != nil {
-		t.Fatalf("second YawReset() = %v, want nil", err)
+	if err := adapter.Reset(ctx, KindFull); err != nil {
+		t.Fatalf("second Reset() = %v, want nil", err)
+	}
+}
+
+func TestSlimeVRIgnoresResponseOfOtherResetType(t *testing.T) {
+	fake := newFakeSlimeVRServer(t)
+	fake.reply = func(_ uint32, requested rpc.ResetType) rpc.ResetType {
+		if requested == rpc.ResetTypeFull {
+			return rpc.ResetTypeYaw
+		}
+		return requested
+	}
+	adapter := NewSlimeVR(wsURL(fake.Server), discardLogger())
+	defer adapter.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	if err := adapter.Reset(ctx, KindFull); err != ErrTimeout {
+		t.Fatalf("Reset() = %v, want ErrTimeout", err)
 	}
 }

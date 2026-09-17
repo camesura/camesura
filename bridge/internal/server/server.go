@@ -142,19 +142,19 @@ func (s *Server) handleReset(ctx context.Context, req protocol.Request, addr net
 
 	s.cfg.Logger.Info("reset request accepted",
 		"from", addr, "request_id", req.RequestID, "device_id", req.DeviceID,
-		"pose", req.Pose, "stable_ms", req.StableMS)
+		"reset", req.Reset, "pose", req.Pose, "stable_ms", req.StableMS)
 
-	s.wg.Go(func() { s.runReset(ctx, req.RequestID) })
+	s.wg.Go(func() { s.runReset(ctx, req.RequestID, resetadapter.Kind(req.Reset)) })
 }
 
 var errCooldown = errors.New("cooldown")
 
-func (s *Server) runReset(ctx context.Context, requestID string) {
+func (s *Server) runReset(ctx context.Context, requestID string, kind resetadapter.Kind) {
 	resetCtx, cancel := context.WithTimeout(ctx, s.cfg.ResetTimeout)
 	defer cancel()
-	err := s.cfg.Adapter.YawReset(resetCtx)
+	err := s.cfg.Adapter.Reset(resetCtx, kind)
 
-	code, message := protocol.CodeResetFinished, "Yaw reset finished"
+	code, message := protocol.CodeResetFinished, "Reset finished"
 	switch {
 	case err == nil:
 	case errors.Is(err, resetadapter.ErrUnavailable):
@@ -165,7 +165,7 @@ func (s *Server) runReset(ctx context.Context, requestID string) {
 		code, message = protocol.CodeAdapterError, err.Error()
 	}
 	if err != nil {
-		s.cfg.Logger.Error("yaw reset failed", "request_id", requestID, "code", code, "error", err)
+		s.cfg.Logger.Error("reset failed", "request_id", requestID, "kind", kind, "code", code, "error", err)
 	}
 
 	s.mu.Lock()

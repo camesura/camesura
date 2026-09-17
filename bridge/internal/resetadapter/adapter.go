@@ -1,4 +1,4 @@
-// Package resetadapter isolates how a Yaw Reset is actually performed.
+// Package resetadapter isolates how a reset is actually performed.
 package resetadapter
 
 import (
@@ -15,9 +15,17 @@ var (
 	ErrTimeout = errors.New("reset target timed out")
 )
 
+// Kind is the reset requested by the mobile app.
+type Kind string
+
+const (
+	KindYaw  Kind = "yaw"
+	KindFull Kind = "full"
+)
+
 type ResetAdapter interface {
 	Name() string
-	YawReset(ctx context.Context) error
+	Reset(ctx context.Context, kind Kind) error
 }
 
 // Mock logs the reset instead of talking to SlimeVR.
@@ -28,7 +36,7 @@ type Mock struct {
 
 func (m *Mock) Name() string { return "mock" }
 
-func (m *Mock) YawReset(ctx context.Context) error {
+func (m *Mock) Reset(ctx context.Context, kind Kind) error {
 	if m.Delay > 0 {
 		select {
 		case <-time.After(m.Delay):
@@ -37,7 +45,7 @@ func (m *Mock) YawReset(ctx context.Context) error {
 		}
 	}
 	if m.Logger != nil {
-		m.Logger.Info("mock yaw reset finished")
+		m.Logger.Info("mock reset finished", "kind", kind)
 	}
 	return nil
 }

@@ -9,7 +9,7 @@ enum _BridgeState { unchecked, available, unreachable }
 
 enum _ResetPhase { idle, countdown, sending, finished, failed }
 
-/// Bridge connection settings and a manual Yaw Reset button with countdown.
+/// Bridge connection settings and manual Full/Yaw Reset buttons with countdown.
 class BridgeResetPanel extends StatefulWidget {
   const BridgeResetPanel({super.key, this.client = const BridgeClient()});
 
@@ -23,6 +23,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
   BridgeSettings? _settings;
   _BridgeState _bridgeState = _BridgeState.unchecked;
   _ResetPhase _resetPhase = _ResetPhase.idle;
+  ResetKind? _activeKind;
   String? _adapter;
   String? _resultMessage;
   bool _isChecking = false;
@@ -84,7 +85,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     }
   }
 
-  void _startCountdown() {
+  void _startCountdown(ResetKind kind) {
     final settings = _settings;
     if (settings == null) return;
     if (settings.host.isEmpty) {
@@ -94,6 +95,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     _countdownTimer?.cancel();
     setState(() {
       _resetPhase = _ResetPhase.countdown;
+      _activeKind = kind;
       _secondsLeft = manualResetCountdown.inSeconds;
       _resultMessage = null;
     });
@@ -104,14 +106,15 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
         return;
       }
       timer.cancel();
-      unawaited(_sendReset(settings));
+      unawaited(_sendReset(settings, kind));
     });
   }
 
-  Future<void> _sendReset(BridgeSettings settings) async {
+  Future<void> _sendReset(BridgeSettings settings, ResetKind kind) async {
     setState(() => _resetPhase = _ResetPhase.sending);
     try {
-      final response = await widget.client.requestYawReset(
+      final response = await widget.client.requestReset(
+        kind: kind,
         host: settings.host,
         deviceId: settings.deviceId,
         pose: 'manual',
@@ -124,7 +127,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
         _adapter = response.adapter;
         _resetPhase = response.isOk ? _ResetPhase.finished : _ResetPhase.failed;
         _resultMessage = response.isOk
-            ? 'Yaw Resetが完了しました'
+            ? '${_kindLabel(kind)}が完了しました'
             : _errorText(response.code, response.message);
       });
     } on Exception catch (error) {
@@ -135,6 +138,20 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
         _resultMessage = error.toString();
       });
     }
+  }
+
+  String _kindLabel(ResetKind kind) => switch (kind) {
+    ResetKind.full => 'リセット',
+    ResetKind.yaw => 'Yawリセット',
+  };
+
+  String _buttonLabel(ResetKind kind) {
+    if (_activeKind != kind) return _kindLabel(kind);
+    return switch (_resetPhase) {
+      _ResetPhase.countdown => '$_secondsLeft秒後',
+      _ResetPhase.sending => '送信中…',
+      _ => _kindLabel(kind),
+    };
   }
 
   String _errorText(String code, String message) {
@@ -210,21 +227,30 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
             ],
           ),
           const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: settings == null || busy ? null : _startCountdown,
-            icon: const Icon(Icons.explore_rounded),
-            label: Text(switch (_resetPhase) {
-              _ResetPhase.countdown => '$_secondsLeft秒後にリセット',
-              _ResetPhase.sending => '送信中…',
-              _ => 'Yaw Reset',
-            }),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: settings == null || busy
+                      ? null
+                      : () => _startCountdown(ResetKind.full),
+                  icon: const Icon(Icons.restart_alt_rounded),
+                  label: Text(_buttonLabel(ResetKind.full)),
+                  style: _resetButtonStyle,
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: settings == null || busy
+                      ? null
+                      : () => _startCountdown(ResetKind.yaw),
+                  icon: const Icon(Icons.restart_alt_rounded),
+                  label: Text(_buttonLabel(ResetKind.yaw)),
+                  style: _resetButtonStyle,
+                ),
+              ),
+            ],
           ),
           if (_resultMessage case final message?) ...[
             const SizedBox(height: 10),
@@ -243,6 +269,11 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
       ),
     );
   }
+
+  static final _resetButtonStyle = FilledButton.styleFrom(
+    minimumSize: const Size.fromHeight(52),
+    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+  );
 
   String get _bridgeLabel => switch (_bridgeState) {
     _BridgeState.unchecked => '接続未確認',

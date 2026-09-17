@@ -6,8 +6,17 @@ import 'dart:math';
 const bridgeProtocolVersion = 1;
 const bridgeDefaultPort = 39500;
 
-/// Countdown before a manual Yaw Reset, matching SlimeVR's default delay.
+/// Countdown before a manual reset, matching SlimeVR's default delay.
 const manualResetCountdown = Duration(seconds: 3);
+
+enum ResetKind {
+  full('full'),
+  yaw('yaw');
+
+  const ResetKind(this.wireName);
+
+  final String wireName;
+}
 
 class BridgeResponse {
   const BridgeResponse({
@@ -67,7 +76,8 @@ class BridgeClient {
     });
   }
 
-  Future<BridgeResponse> requestYawReset({
+  Future<BridgeResponse> requestReset({
+    required ResetKind kind,
     required String host,
     required String deviceId,
     required String pose,
@@ -79,7 +89,7 @@ class BridgeClient {
       'type': 'reset_request',
       'request_id': newRequestId(),
       'device_id': deviceId,
-      'reset': 'yaw',
+      'reset': kind.wireName,
       'pose': pose,
       'stable_ms': stableMs,
       'confidence': confidence,
