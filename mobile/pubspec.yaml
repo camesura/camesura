@@ -1,7 +1,7 @@
 name: camesura
 description: "SlimeVRのYaw Resetを正しい姿勢で行うための補助アプリ。"
 publish_to: 'none'
-version: 0.6.0+8
+version: 0.7.0+9
 
 environment:
   sdk: ^3.13.3
