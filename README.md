@@ -56,7 +56,8 @@ mise run mobile-format   # Dartフォーマットの確認
 mise run mobile-analyze  # Flutter静的解析
 mise run mobile-test     # Flutterテスト
 mise run bridge-test     # Goテスト
-mise run bridge-run      # Bridgeを起動（Mock Adapter）
+mise run bridge-run      # BridgeをSlimeVR接続で起動
+mise run bridge-run-mock # BridgeをMock Adapterで起動
 mise run android-run     # 接続したAndroid端末で起動
 mise run android-apk     # 動作確認用リリースAPKを生成
 mise run ci              # CIと同じ全チェック
@@ -149,7 +150,7 @@ fix: タイマーのライフサイクル競合を修正
 2. mainへのpushを契機に、GitHub Actionsがリリース候補PRを作成または更新する。
 3. リリース候補PRの `mobile/CHANGELOG.md` を確認し、すべての変更点が日本語かつユーザー視点になっていることを確認する。ルールに合わない場合は、元のPRタイトルまたはコミット件名を次回から直すだけで済ませず、公開前のリリースノートも日本語のユーザー向け表現へ整える。
 4. リリースするタイミングでリリース候補PRをマージする。
-5. バージョンタグ `v*` と GitHub Release が自動作成され、同じmise環境でビルドしたAPKとSHA-256チェックサムが自動で添付される。タグの手動pushは不要。
+5. バージョンタグ `v*` と GitHub Release が自動作成され、同じmise環境でビルドしたAPK、Windows・macOS・Linux向けBridge、および各SHA-256チェックサムが自動で添付される。タグの手動pushは不要。
 
 リリース候補PRはpubspec.yamlのバージョンとCHANGELOG.md、`.release-please-manifest.json`を更新します。
 

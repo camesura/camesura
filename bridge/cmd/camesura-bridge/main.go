@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -18,12 +20,40 @@ import (
 	"github.com/camesura/camesura/bridge/internal/server"
 )
 
+const (
+	defaultAdapterName = "slimevr"
+	backgroundChildEnv = "CAMESURA_BRIDGE_BACKGROUND_CHILD"
+)
+
+var version = "dev"
+
 func main() {
 	listen := flag.String("listen", fmt.Sprintf(":%d", protocol.DefaultPort), "UDP address to listen on")
-	adapterName := flag.String("adapter", "mock", "reset adapter (mock, slimevr)")
+	adapterName := flag.String("adapter", defaultAdapterName, "reset adapter (slimevr, mock)")
 	slimevrURL := flag.String("slimevr-url", resetadapter.DefaultSlimeVRURL, "SlimeVR Server WebSocket URL (adapter=slimevr)")
 	cooldown := flag.Duration("cooldown", server.DefaultCooldown, "per-device reset cooldown")
+	background := flag.Bool("background", false, "run in the background")
+	foreground := flag.Bool("foreground", false, "keep the console open instead of backgrounding when no options are given")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("CameSura Bridge %s\n", version)
+		return
+	}
+	// A released binary is normally opened directly from Finder/Explorer. With
+	// no arguments it detaches, keeps running after that window closes, and
+	// writes diagnostics to the OS cache directory. Explicit CLI invocations
+	// stay in the foreground unless -background is requested.
+	if shouldStartBackground(os.Args, *background, *foreground, os.Getenv(backgroundChildEnv) == "1") {
+		pid, logPath, err := startBackgroundProcess()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "CameSura Bridgeをバックグラウンド起動できません: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("CameSura Bridgeをバックグラウンドで起動しました (PID %d)\nログ: %s\n", pid, logPath)
+		return
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	if err := run(logger, *listen, *adapterName, *slimevrURL, *cooldown); err != nil {
@@ -54,7 +84,7 @@ func run(logger *slog.Logger, listen, adapterName, slimevrURL string, cooldown t
 	defer stop()
 
 	port := conn.LocalAddr().(*net.UDPAddr).Port
-	logger.Info("CameSura Bridge started", "listen", conn.LocalAddr(), "adapter", adapter.Name())
+	logger.Info("CameSura Bridge started", "version", version, "listen", conn.LocalAddr(), "adapter", adapter.Name())
 	for _, ip := range lanIPv4s() {
 		logger.Info("the mobile app finds this Bridge automatically; manual address", "ip", ip, "port", port)
 	}
@@ -63,6 +93,47 @@ func run(logger *slog.Logger, listen, adapterName, slimevrURL string, cooldown t
 	name = strings.TrimSuffix(name, ".local")
 	srv := server.New(conn, server.Config{Name: name, Adapter: adapter, Logger: logger, Cooldown: cooldown})
 	return srv.Serve(ctx)
+}
+
+func shouldStartBackground(args []string, explicit, foreground, child bool) bool {
+	return !child && (explicit || (len(args) == 1 && !foreground))
+}
+
+func startBackgroundProcess() (int, string, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return 0, "", err
+	}
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return 0, "", err
+	}
+	logDir := filepath.Join(cacheDir, "CameSura")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return 0, "", err
+	}
+	logPath := filepath.Join(logDir, "camesura-bridge.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return 0, "", err
+	}
+
+	cmd := exec.Command(executable, os.Args[1:]...)
+	cmd.Env = append(os.Environ(), backgroundChildEnv+"=1")
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	configureBackgroundProcess(cmd)
+	if err := cmd.Start(); err != nil {
+		_ = logFile.Close()
+		return 0, "", err
+	}
+	pid := cmd.Process.Pid
+	if err := cmd.Process.Release(); err != nil {
+		_ = logFile.Close()
+		return 0, "", err
+	}
+	_ = logFile.Close()
+	return pid, logPath, nil
 }
 
 // virtualInterfacePrefixes are macOS/Linux interface names that are never the

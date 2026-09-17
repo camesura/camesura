@@ -2,25 +2,33 @@
 
 スマートフォンからのリセット（Full Reset / Yaw Reset）要求をUDP（既定ポート`39500`）で受け取り、SlimeVR Serverへ中継するGoアプリケーションです。`ResetAdapter`はMock版と、SlimeVR Server（`ws://127.0.0.1:21110`）へSolarXR Protocol（WebSocket + FlatBuffers）で`ResetRequest`を送るSlimeVR版の2つを実装しています。
 
-## Macで起動する
+## 配布版を起動する
 
-Mock Adapter（SlimeVRなしで疎通確認する場合）:
+GitHub ReleaseからOSとCPUに合うファイルを展開し、SlimeVR Serverを起動してから`camesura-bridge`（Windowsは`camesura-bridge.exe`）を開きます。引数なしで起動するとSlimeVR Adapterを使ってバックグラウンドで動作します。Go、FlatBuffers、設定ファイル、インストーラーは不要です。
+
+ログはOSのユーザーキャッシュディレクトリ内にある`CameSura/camesura-bridge.log`へ保存されます。動作確認のためコンソールを開いたままにする場合:
 
 ```sh
-mise run bridge-run
+./camesura-bridge -foreground
+```
+
+明示的にバックグラウンド起動する場合:
+
+```sh
+./camesura-bridge -background
+```
+
+Mock Adapter（SlimeVRなしで開発時の疎通確認をする場合）:
+
+```sh
+mise run bridge-run-mock
 # または
-cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter mock
+go run ./cmd/camesura-bridge -foreground -adapter mock
 ```
 
-SlimeVR Adapter（実際にSlimeVRへリセットを送る場合）:
+スマホアプリの初回設定で「Bridgeを探す」を押します。見つからない場合は、起動ログの`manual address ip=...`に表示されたIPアドレスを「IPアドレスを設定」へ入力します。スマートフォンとPCは同じLANに接続してください（スマホのホットスポットにPCを繋いでいる場合も同様に動作します）。
 
-```sh
-cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter slimevr
-```
-
-アプリは補正準備画面を開くと同じLAN内のBridgeを自動で探します（虫眼鏡ボタンで再検索）。見つからない場合は、起動ログの`manual address ip=...`に表示されたIPアドレスを「IPアドレスを設定」へ入力します。スマートフォンとMacは同じLANに接続してください（スマホのホットスポットにMacを繋いでいる場合も同様に動作します）。
-
-初回起動時にmacOSのファイアウォールが受信接続の許可を求めた場合は「許可」を選びます。
+初回起動時にOSのファイアウォールが受信接続の許可を求めた場合は許可します。未署名のmacOS配布物はGatekeeperに止められる場合があるため、一般公開時はコード署名とnotarizationを追加します。
 
 ## 構成
 

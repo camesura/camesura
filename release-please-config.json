@@ -17,7 +17,7 @@
         }
       ],
       "pull-request-header": "このリリースPRは Release Please により自動生成されています。公開内容が日本語かつユーザー視点になっていることを確認してください。",
-      "pull-request-footer": "このPRをマージすると、タグと GitHub Release が作成され、Android APK が添付されます。"
+      "pull-request-footer": "このPRをマージすると、タグと GitHub Release が作成され、Android APKとWindows・macOS・Linux向けBridgeが添付されます。"
     }
   }
 }

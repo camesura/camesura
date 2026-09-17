@@ -53,9 +53,14 @@ dir = "mobile"
 run = "flutter build apk --release"
 
 [tasks.bridge-run]
-description = "Run the Bridge with the Mock adapter (UDP :39500)"
+description = "Run the Bridge with SlimeVR in the foreground (UDP :39500)"
 dir = "bridge"
-run = "go run ./cmd/camesura-bridge"
+run = "go run ./cmd/camesura-bridge -foreground"
+
+[tasks.bridge-run-mock]
+description = "Run the Bridge with the Mock adapter in the foreground"
+dir = "bridge"
+run = "go run ./cmd/camesura-bridge -foreground -adapter mock"
 
 [tasks.bridge-test]
 description = "Run Go tests"

@@ -1,4 +1,4 @@
-name: Release Android APK
+name: Release CameSura
 
 on:
   push:
@@ -73,3 +73,78 @@ jobs:
         run: |
           apk="camesura-${TAG_NAME}-android.apk"
           gh release upload "$TAG_NAME" "$apk" "$apk.sha256" --clobber
+
+  build-bridge:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            suffix: .exe
+            format: zip
+          - goos: darwin
+            goarch: amd64
+            suffix: ''
+            format: tar.gz
+          - goos: darwin
+            goarch: arm64
+            suffix: ''
+            format: tar.gz
+          - goos: linux
+            goarch: amd64
+            suffix: ''
+            format: tar.gz
+          - goos: linux
+            goarch: arm64
+            suffix: ''
+            format: tar.gz
+    steps:
+      - name: Checkout released tag
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Install project toolchain
+        uses: jdx/mise-action@v4.3.0
+        with:
+          version: 2026.9.9
+          cache: true
+
+      - name: Build Bridge
+        id: package
+        working-directory: bridge
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          BINARY_SUFFIX: ${{ matrix.suffix }}
+          ARCHIVE_FORMAT: ${{ matrix.format }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -eu
+          base="camesura-bridge-${TAG_NAME}-${GOOS}-${GOARCH}"
+          binary="dist/${base}${BINARY_SUFFIX}"
+          mkdir -p dist
+          CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X main.version=${TAG_NAME}" \
+            -o "$binary" ./cmd/camesura-bridge
+          if [ "$ARCHIVE_FORMAT" = "zip" ]; then
+            archive="dist/${base}.zip"
+            zip -j "$archive" "$binary"
+          else
+            archive="dist/${base}.tar.gz"
+            tar -C dist -czf "$archive" "${base}${BINARY_SUFFIX}"
+          fi
+          sha256sum "$archive" > "${archive}.sha256"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Bridge to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          ARCHIVE: bridge/${{ steps.package.outputs.archive }}
+        run: gh release upload "$TAG_NAME" "$ARCHIVE" "$ARCHIVE.sha256" --clobber
