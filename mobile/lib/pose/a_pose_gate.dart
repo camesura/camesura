@@ -27,6 +27,16 @@ class APoseGate {
   Duration? _stableDurationAtSend;
   Duration? get lastStableDuration => _stableDurationAtSend;
 
+  /// [holdDuration]までの残り時間。まだ保持を始めていない（`watching`で
+  /// [allMet]がまだ一度もtrueになっていない）場合は[holdDuration]をそのまま
+  /// 返す。UIのカウントダウン表示に使う。
+  Duration remainingHold(Duration timestamp) {
+    final metSince = _metSince;
+    if (metSince == null) return holdDuration;
+    final remaining = holdDuration - (timestamp - metSince);
+    return remaining > Duration.zero ? remaining : Duration.zero;
+  }
+
   /// 毎フレーム呼ぶ。[holdDuration]以上連続で[allMet]だった直後の1回だけ
   /// [APoseGateAction.sendRequest]を返し、内部状態を`sending`へ進める
   /// （ラッチが閉じ、以後は[completeSend]を呼ぶまで送信しない）。

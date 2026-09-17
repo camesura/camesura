@@ -78,6 +78,25 @@ void main() {
     expect(stable, isTrue);
   });
 
+  test('maxNormalizedMovementを実行中に変更すると以降の判定に反映される', () {
+    final tracker = APoseStabilityTracker();
+    tracker.addSample(timestamp: Duration.zero, points: _shiftedPoints(0, 0));
+    final strict = tracker.addSample(
+      timestamp: const Duration(milliseconds: 100),
+      points: _shiftedPoints(20, 0),
+    );
+    // shoulderWidth=160, 移動20px -> normalized=0.125 は既定値0.08以上で不成立。
+    expect(strict, isFalse);
+
+    tracker.maxNormalizedMovement = 0.2;
+    final lenient = tracker.addSample(
+      timestamp: const Duration(milliseconds: 200),
+      points: _shiftedPoints(20, 0),
+    );
+    // 同じ0.125の動きでも、しきい値を0.2まで緩めれば成立する。
+    expect(lenient, isTrue);
+  });
+
   test('必須点が欠損すると窓がリセットされる', () {
     final tracker = APoseStabilityTracker();
     tracker.addSample(timestamp: Duration.zero, points: _shiftedPoints(0, 0));

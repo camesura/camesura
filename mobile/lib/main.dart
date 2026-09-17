@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'bridge/bridge_reset_panel.dart';
 import 'bridge/bridge_settings.dart';
 import 'camera/pose_camera_view.dart';
+import 'pose/a_pose_sensitivity_settings.dart';
 import 'theme/app_colors.dart';
 
 void main() {
@@ -94,6 +95,8 @@ class CalibrationPage extends StatefulWidget {
 
 class _CalibrationPageState extends State<CalibrationPage> {
   BridgeSettings? _settings;
+  APoseSensitivitySettings _sensitivity =
+      APoseSensitivitySettings.defaultSettings;
 
   @override
   void initState() {
@@ -103,7 +106,25 @@ class _CalibrationPageState extends State<CalibrationPage> {
 
   Future<void> _loadSettings() async {
     final settings = await BridgeSettings.load();
-    if (mounted) setState(() => _settings = settings);
+    final sensitivity = await APoseSensitivitySettings.load();
+    if (!mounted) return;
+    setState(() {
+      _settings = settings;
+      _sensitivity = sensitivity;
+    });
+  }
+
+  Future<void> _openSensitivitySettings() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _SensitivitySettingsSheet(
+        sensitivity: _sensitivity,
+        onChanged: (updated) {
+          if (mounted) setState(() => _sensitivity = updated);
+        },
+      ),
+    );
   }
 
   @override
@@ -115,6 +136,13 @@ class _CalibrationPageState extends State<CalibrationPage> {
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF3F7F8),
+        actions: [
+          IconButton(
+            tooltip: '判定の厳しさを調整',
+            onPressed: _openSensitivitySettings,
+            icon: const Icon(Icons.tune_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -128,7 +156,10 @@ class _CalibrationPageState extends State<CalibrationPage> {
                   // 姿勢チェックの条件は正面のみで、成立するとPoseCameraView
                   // 内部でカメラ枠が緑に光る。ここでは条件を文字やチップで
                   // 明示しない。
-                  PoseCameraView(settings: _settings),
+                  PoseCameraView(
+                    settings: _settings,
+                    sensitivity: _sensitivity,
+                  ),
                   const SizedBox(height: 18),
                   if (_settings != null) const BridgeResetPanel(),
                 ],
@@ -137,6 +168,137 @@ class _CalibrationPageState extends State<CalibrationPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SensitivitySettingsSheet extends StatefulWidget {
+  const _SensitivitySettingsSheet({
+    required this.sensitivity,
+    required this.onChanged,
+  });
+
+  final APoseSensitivitySettings sensitivity;
+  final ValueChanged<APoseSensitivitySettings> onChanged;
+
+  @override
+  State<_SensitivitySettingsSheet> createState() =>
+      _SensitivitySettingsSheetState();
+}
+
+class _SensitivitySettingsSheetState extends State<_SensitivitySettingsSheet> {
+  late APoseSensitivitySettings _current = widget.sensitivity;
+
+  void _updateFront(double value) {
+    final updated = APoseSensitivitySettings(
+      frontStrictness: value,
+      stillnessStrictness: _current.stillnessStrictness,
+    );
+    setState(() => _current = updated);
+    widget.onChanged(updated);
+  }
+
+  void _updateStillness(double value) {
+    final updated = APoseSensitivitySettings(
+      frontStrictness: _current.frontStrictness,
+      stillnessStrictness: value,
+    );
+    setState(() => _current = updated);
+    widget.onChanged(updated);
+  }
+
+  Future<void> _persistFront(double value) async {
+    final saved = await _current.withFrontStrictness(value);
+    if (mounted) setState(() => _current = saved);
+  }
+
+  Future<void> _persistStillness(double value) async {
+    final saved = await _current.withStillnessStrictness(value);
+    if (mounted) setState(() => _current = saved);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '判定の厳しさ',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: const Color(0xFF082C36),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '緩めるとポーズが成立しやすくなり、厳しくすると誤作動しにくくなります',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: const Color(0xFF557177)),
+            ),
+            const SizedBox(height: 20),
+            _SensitivitySlider(
+              label: '正面判定',
+              value: _current.frontStrictness,
+              onChanged: _updateFront,
+              onChangeEnd: _persistFront,
+            ),
+            const SizedBox(height: 16),
+            _SensitivitySlider(
+              label: '静止判定',
+              value: _current.stillnessStrictness,
+              onChanged: _updateStillness,
+              onChangeEnd: _persistStillness,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SensitivitySlider extends StatelessWidget {
+  const _SensitivitySlider({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF284950),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Slider(
+          value: value,
+          onChanged: onChanged,
+          onChangeEnd: onChangeEnd,
+          activeColor: AppColors.turtleGreen,
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: const [
+            Text('緩い', style: TextStyle(color: Color(0xFF718A90))),
+            Text('厳しい', style: TextStyle(color: Color(0xFF718A90))),
+          ],
+        ),
+      ],
     );
   }
 }

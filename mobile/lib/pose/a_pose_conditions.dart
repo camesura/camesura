@@ -64,11 +64,12 @@ APoseConditions evaluateAPoseConditions({
   required PosePoints? points,
   required Size imageSize,
   required bool still,
+  double frontTiltRatio = APoseThresholds.frontTiltRatio,
 }) {
   if (points == null) return APoseConditions.none;
   return APoseConditions(
     fullBody: _checkFullBody(points, imageSize),
-    frontFacing: _checkFrontFacing(points),
+    frontFacing: _checkFrontFacing(points, frontTiltRatio),
     upright: _checkUpright(points, imageSize),
     arms: _checkArms(points),
     still: still,
@@ -95,7 +96,7 @@ bool _checkFullBody(PosePoints points, Size imageSize) {
   return true;
 }
 
-bool _checkFrontFacing(PosePoints points) {
+bool _checkFrontFacing(PosePoints points, double frontTiltRatio) {
   final leftShoulder = points[PoseLandmarkType.leftShoulder]!;
   final rightShoulder = points[PoseLandmarkType.rightShoulder]!;
   final leftHip = points[PoseLandmarkType.leftHip]!;
@@ -112,13 +113,12 @@ bool _checkFrontFacing(PosePoints points) {
 
   final shoulderWidth = _dist(leftShoulder, rightShoulder);
   if ((leftShoulder.y - rightShoulder.y).abs() >
-      APoseThresholds.frontTiltRatio * shoulderWidth) {
+      frontTiltRatio * shoulderWidth) {
     return false;
   }
 
   final hipWidth = _dist(leftHip, rightHip);
-  if ((leftHip.y - rightHip.y).abs() >
-      APoseThresholds.frontTiltRatio * hipWidth) {
+  if ((leftHip.y - rightHip.y).abs() > frontTiltRatio * hipWidth) {
     return false;
   }
   return true;

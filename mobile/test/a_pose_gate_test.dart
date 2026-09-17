@@ -122,6 +122,34 @@ void main() {
     expect(gate.state, APoseGateState.watching);
   });
 
+  test('remainingHoldはholding中の残り時間をカウントダウンする', () {
+    final gate = APoseGate(
+      holdDuration: const Duration(seconds: 2),
+      breakDuration: const Duration(seconds: 1),
+    );
+    // まだholdを始めていない間はholdDurationそのまま。
+    expect(gate.remainingHold(Duration.zero), const Duration(seconds: 2));
+
+    gate.update(allMet: true, timestamp: Duration.zero);
+    expect(
+      gate.remainingHold(const Duration(milliseconds: 500)),
+      const Duration(milliseconds: 1500),
+    );
+
+    // holdDurationを超えて呼んでも負にはならず0で止まる。
+    expect(
+      gate.remainingHold(const Duration(milliseconds: 3000)),
+      Duration.zero,
+    );
+
+    // 姿勢が崩れてwatchingに戻ったら、再びholdDurationそのまま。
+    gate.update(allMet: false, timestamp: const Duration(milliseconds: 3000));
+    expect(
+      gate.remainingHold(const Duration(milliseconds: 3000)),
+      const Duration(seconds: 2),
+    );
+  });
+
   test('lastStableDurationは送信を要求した時点の保持時間を返す', () {
     final gate = APoseGate(
       holdDuration: const Duration(seconds: 2),

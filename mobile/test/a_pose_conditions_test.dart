@@ -148,6 +148,32 @@ void main() {
       );
       expect(result.frontFacing, isFalse);
     });
+
+    test('frontTiltRatioを緩めると同じ傾きでも成立する', () {
+      final base = _basePoints();
+      final points = _override(
+        base,
+        PoseLandmarkType.leftShoulder,
+        PosePoint(
+          x: base[PoseLandmarkType.leftShoulder]!.x,
+          y: base[PoseLandmarkType.leftShoulder]!.y + 30,
+          likelihood: 0.9,
+        ),
+      );
+      final strict = evaluateAPoseConditions(
+        points: points,
+        imageSize: _imageSize,
+        still: true,
+      );
+      final lenient = evaluateAPoseConditions(
+        points: points,
+        imageSize: _imageSize,
+        still: true,
+        frontTiltRatio: 0.25,
+      );
+      expect(strict.frontFacing, isFalse);
+      expect(lenient.frontFacing, isTrue);
+    });
   });
 
   group('直立', () {

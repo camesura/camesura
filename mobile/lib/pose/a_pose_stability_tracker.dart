@@ -16,7 +16,10 @@ class APoseStabilityTracker {
   });
 
   final Duration window;
-  final double maxNormalizedMovement;
+
+  /// 静止判定の厳しさ。実行中に書き換え可能（設定画面のスライダーから
+  /// その場で反映するため）。ウィンドウのリセットは不要。
+  double maxNormalizedMovement;
 
   final List<(Duration timestamp, PosePoints points)> _samples = [];
 

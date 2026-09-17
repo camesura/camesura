@@ -10,6 +10,7 @@ import '../bridge/bridge_settings.dart';
 import '../pose/a_pose_conditions.dart';
 import '../pose/a_pose_gate.dart';
 import '../pose/a_pose_points.dart';
+import '../pose/a_pose_sensitivity_settings.dart';
 import '../pose/a_pose_stability_tracker.dart';
 import '../pose/pose_skeleton_painter.dart';
 import '../theme/app_colors.dart';
@@ -27,6 +28,7 @@ class PoseCameraView extends StatefulWidget {
     super.key,
     this.client = const BridgeClient(),
     this.settings,
+    this.sensitivity = APoseSensitivitySettings.defaultSettings,
     this.onConditionsChanged,
   });
 
@@ -34,6 +36,9 @@ class PoseCameraView extends StatefulWidget {
 
   /// Bridgeの接続先。nullまたはhostが空の間はAポーズが成立しても送信しない。
   final BridgeSettings? settings;
+
+  /// 正面・静止判定の厳しさ。設定画面のスライダーから渡される。
+  final APoseSensitivitySettings sensitivity;
 
   /// 監視画面の条件表示（全身/正面/直立/腕/静止）を更新するためのコールバック。
   final void Function(APoseConditions conditions, APoseGateState gateState)?
@@ -69,6 +74,10 @@ class _PoseCameraViewState extends State<PoseCameraView>
   /// 枠を緑にし、続けて静止するよう案内する。
   bool _poseMatched = false;
 
+  /// 静止保持の残り秒数（切り上げ）。カウントダウン表示用。
+  int _remainingHoldSeconds = 0;
+  APoseGateState _gateState = APoseGateState.watching;
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +112,8 @@ class _PoseCameraViewState extends State<PoseCameraView>
         _errorMessage = null;
         _poseFrame = null;
         _poseMatched = false;
+        _remainingHoldSeconds = 0;
+        _gateState = APoseGateState.watching;
       });
     }
 
@@ -223,6 +234,8 @@ class _PoseCameraViewState extends State<PoseCameraView>
   void _evaluateAPose(PoseFrame? frame) {
     final timestamp = _clock.elapsed;
     final points = frame == null ? null : extractRequiredPoints(frame);
+    _stabilityTracker.maxNormalizedMovement =
+        widget.sensitivity.stillMaxNormalizedMovement;
     final still = _stabilityTracker.addSample(
       timestamp: timestamp,
       points: points,
@@ -233,6 +246,7 @@ class _PoseCameraViewState extends State<PoseCameraView>
           ? Size.zero
           : uprightImageSize(frame.imageSize, frame.rotation),
       still: still,
+      frontTiltRatio: widget.sensitivity.frontTiltRatio,
     );
 
     final action = _gate.update(
@@ -242,8 +256,18 @@ class _PoseCameraViewState extends State<PoseCameraView>
     widget.onConditionsChanged?.call(conditions, _gate.state);
 
     final poseMatched = conditions.poseMatched;
-    if (poseMatched != _poseMatched && mounted) {
-      setState(() => _poseMatched = poseMatched);
+    final remainingSeconds =
+        (_gate.remainingHold(timestamp).inMilliseconds / 1000).ceil();
+    final gateState = _gate.state;
+    if (mounted &&
+        (poseMatched != _poseMatched ||
+            remainingSeconds != _remainingHoldSeconds ||
+            gateState != _gateState)) {
+      setState(() {
+        _poseMatched = poseMatched;
+        _remainingHoldSeconds = remainingSeconds;
+        _gateState = gateState;
+      });
     }
 
     if (action == APoseGateAction.sendRequest) {
@@ -360,13 +384,28 @@ class _PoseCameraViewState extends State<PoseCameraView>
     );
   }
 
-  /// プレビュー下部の案内文。ポーズが未検出/未成立の間は構え方を、
-  /// ポーズが成立した後は静止するよう案内する。
+  /// 上部の案内文。ポーズが未検出/未成立の間は構え方を案内する。秒数は
+  /// 中央の大きなカウントダウン（[_CountdownBadge]）で示すため、ここでは
+  /// 繰り返さない。
   String get _guidanceMessage {
     if (_poseFrame == null) return '全身が画面に入る位置に立ってください';
     if (!_poseMatched) return '正面を向いてください';
-    return 'そのまま静止してください';
+    switch (_gateState) {
+      case APoseGateState.sending:
+        return '送信中…';
+      case APoseGateState.latched:
+        return '自動リセットしました';
+      case APoseGateState.error:
+        return '送信に失敗しました。もう一度お試しください';
+      case APoseGateState.watching:
+      case APoseGateState.holding:
+        return 'そのまま静止してください';
+    }
   }
+
+  /// 静止を保持している間だけ、中央に大きな残り秒数を表示する。
+  bool get _showCountdown =>
+      _gateState == APoseGateState.holding && _remainingHoldSeconds > 0;
 
   Widget _buildPreview() {
     final controller = _controller;
@@ -413,7 +452,8 @@ class _PoseCameraViewState extends State<PoseCameraView>
             Positioned(
               top: 14,
               left: 14,
-              child: _DetectionBadge(detected: _poseFrame != null),
+              right: _hasFrontCamera ? 64 : 14,
+              child: Center(child: _GuidanceBanner(message: _guidanceMessage)),
             ),
             if (_hasFrontCamera)
               Positioned(
@@ -421,20 +461,8 @@ class _PoseCameraViewState extends State<PoseCameraView>
                 right: 14,
                 child: _CameraSwitchButton(onPressed: _switchCamera),
               ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 14,
-              child: Text(
-                _guidanceMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
-                ),
-              ),
-            ),
+            if (_showCountdown)
+              Center(child: _CountdownBadge(seconds: _remainingHoldSeconds)),
           ],
         );
       },
@@ -442,39 +470,54 @@ class _PoseCameraViewState extends State<PoseCameraView>
   }
 }
 
-class _DetectionBadge extends StatelessWidget {
-  const _DetectionBadge({required this.detected});
+class _GuidanceBanner extends StatelessWidget {
+  const _GuidanceBanner({required this.message});
 
-  final bool detected;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    final color = detected ? AppColors.turtleGreen : const Color(0xFFFFD166);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xD91A3138),
-        borderRadius: BorderRadius.circular(99),
+        color: const Color(0xE61A3138),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            detected
-                ? Icons.accessibility_new_rounded
-                : Icons.person_search_rounded,
-            size: 17,
-            color: color,
-          ),
-          const SizedBox(width: 7),
-          Text(
-            detected ? '骨格を検出しました' : '姿勢を探しています',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _CountdownBadge extends StatelessWidget {
+  const _CountdownBadge({required this.seconds});
+
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      height: 100,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xCC1A3138),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.turtleGreen, width: 3),
+      ),
+      child: Text(
+        '$seconds',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 48,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
