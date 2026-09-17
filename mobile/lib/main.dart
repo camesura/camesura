@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'bridge/bridge_reset_panel.dart';
 import 'camera/pose_camera_view.dart';
 
 void main() {
@@ -121,7 +122,7 @@ class CalibrationPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const _BridgeStatus(),
+                  const BridgeResetPanel(),
                 ],
               ),
             ),
@@ -151,38 +152,6 @@ class _PendingCondition extends StatelessWidget {
       labelStyle: const TextStyle(
         color: Color(0xFF284950),
         fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _BridgeStatus extends StatelessWidget {
-  const _BridgeStatus();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE8EA)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.router_rounded, color: Color(0xFF718A90)),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Bridge  未接続',
-              style: TextStyle(
-                color: Color(0xFF284950),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Icon(Icons.chevron_right_rounded, color: Color(0xFF718A90)),
-        ],
       ),
     );
   }

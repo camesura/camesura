@@ -205,13 +205,15 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 }
 ```
 
-`confidence`は必要な13点の信頼度の最小値とする。Bridgeは次を検証する。
+`confidence`は必要な13点の信頼度の最小値とする。
+
+開発用に、監視画面の「Yaw Reset」ボタンからSlimeVRと同じ3秒カウントダウン後に送る手動要求も扱う。手動要求は`pose = "manual"`、`stable_ms`にカウントダウン長（3000）、`confidence = 0.0`を入れる。Bridgeは次を検証する。
 
 - `version == 1`
 - `type == "reset_request"`
 - `request_id`と`device_id`が空でない
 - `reset == "yaw"`
-- `pose == "a_pose"`
+- `pose == "a_pose"`または`pose == "manual"`
 - `stable_ms >= 2000`
 - `0.0 <= confidence <= 1.0`
 
@@ -230,6 +232,8 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 ```
 
 `status`は`ok`または`error`。`code`は少なくとも`reset_finished`、`invalid_request`、`unsupported_version`、`cooldown`、`slimevr_unavailable`、`slimevr_timeout`、`adapter_error`を扱う。
+
+接続確認には`{"version": 1, "type": "ping", "request_id": "..."}`を送り、Bridgeは`type = "pong"`、`code = "bridge_ready"`の結果形式で応答する。
 
 Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッシュした同じ結果を送信元へ返す。壊れたJSONやrequest_idを特定できない要求には応答せず、警告ログだけを残す。
 

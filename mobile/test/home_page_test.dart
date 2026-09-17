@@ -1,8 +1,11 @@
 import 'package:camesura/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('トップ画面にブランドと補正フローが表示される', (tester) async {
     await tester.pumpWidget(const CameSuraApp());
 
@@ -22,6 +25,7 @@ void main() {
 
     expect(find.text('補正準備'), findsOneWidget);
     expect(find.byKey(const Key('pose-camera-view')), findsOneWidget);
-    expect(find.text('Bridge  未接続'), findsOneWidget);
+    expect(find.text('Bridge  接続未確認'), findsOneWidget);
+    expect(find.text('Yaw Reset'), findsOneWidget);
   });
 }
