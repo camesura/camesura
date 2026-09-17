@@ -120,7 +120,9 @@ class PoseSkeletonPainter extends CustomPainter {
   }
 }
 
-@visibleForTesting
+/// 生のランドマーク座標（センサー空間）を、回転・前面カメラの反転を
+/// 反映した表示/判定用の座標へ変換する。[PoseSkeletonPainter]の描画と
+/// `a_pose_points.dart`の判定用座標抽出の両方から使われる共有ロジック。
 Offset translatePosePoint({
   required double x,
   required double y,

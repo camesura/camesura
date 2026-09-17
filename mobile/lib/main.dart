@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'bridge/bridge_reset_panel.dart';
+import 'bridge/bridge_settings.dart';
 import 'camera/pose_camera_view.dart';
+import 'pose/a_pose_conditions.dart';
 
 void main() {
   runApp(const CameSuraApp());
@@ -79,8 +83,27 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class CalibrationPage extends StatelessWidget {
+class CalibrationPage extends StatefulWidget {
   const CalibrationPage({super.key});
+
+  @override
+  State<CalibrationPage> createState() => _CalibrationPageState();
+}
+
+class _CalibrationPageState extends State<CalibrationPage> {
+  BridgeSettings? _settings;
+  APoseConditions _conditions = APoseConditions.none;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadSettings());
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = await BridgeSettings.load();
+    if (mounted) setState(() => _settings = settings);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +124,12 @@ class CalibrationPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const PoseCameraView(),
+                  PoseCameraView(
+                    settings: _settings,
+                    onConditionsChanged: (conditions, _) {
+                      if (mounted) setState(() => _conditions = conditions);
+                    },
+                  ),
                   const SizedBox(height: 18),
                   Text(
                     '姿勢チェック',
@@ -111,18 +139,19 @@ class CalibrationPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Wrap(
+                  Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _PendingCondition(label: '全身'),
-                      _PendingCondition(label: '正面'),
-                      _PendingCondition(label: '直立'),
-                      _PendingCondition(label: '静止'),
+                      _ConditionChip(label: '全身', met: _conditions.fullBody),
+                      _ConditionChip(label: '正面', met: _conditions.frontFacing),
+                      _ConditionChip(label: '直立', met: _conditions.upright),
+                      _ConditionChip(label: '腕', met: _conditions.arms),
+                      _ConditionChip(label: '静止', met: _conditions.still),
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const BridgeResetPanel(),
+                  if (_settings != null) const BridgeResetPanel(),
                 ],
               ),
             ),
@@ -133,24 +162,28 @@ class CalibrationPage extends StatelessWidget {
   }
 }
 
-class _PendingCondition extends StatelessWidget {
-  const _PendingCondition({required this.label});
+class _ConditionChip extends StatelessWidget {
+  const _ConditionChip({required this.label, required this.met});
 
   final String label;
+  final bool met;
 
   @override
   Widget build(BuildContext context) {
+    final color = met ? const Color(0xFF007C4F) : const Color(0xFF718A90);
     return Chip(
-      avatar: const Icon(
-        Icons.radio_button_unchecked_rounded,
+      avatar: Icon(
+        met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
         size: 18,
-        color: Color(0xFF718A90),
+        color: color,
       ),
       label: Text(label),
-      side: const BorderSide(color: Color(0xFFD6E3E5)),
-      backgroundColor: Colors.white,
-      labelStyle: const TextStyle(
-        color: Color(0xFF284950),
+      side: BorderSide(
+        color: met ? const Color(0xFF54E1A7) : const Color(0xFFD6E3E5),
+      ),
+      backgroundColor: met ? const Color(0xFFE8F8F0) : Colors.white,
+      labelStyle: TextStyle(
+        color: const Color(0xFF284950),
         fontWeight: FontWeight.w700,
       ),
     );

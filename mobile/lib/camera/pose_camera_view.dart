@@ -5,6 +5,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
+import '../bridge/bridge_client.dart';
+import '../bridge/bridge_settings.dart';
+import '../pose/a_pose_conditions.dart';
+import '../pose/a_pose_gate.dart';
+import '../pose/a_pose_points.dart';
+import '../pose/a_pose_stability_tracker.dart';
 import '../pose/pose_skeleton_painter.dart';
 import 'camera_image_converter.dart';
 
@@ -16,7 +22,21 @@ enum _CameraViewState { initializing, streaming, permissionDenied, unavailable }
 const poseCameraResolutionPreset = ResolutionPreset.medium;
 
 class PoseCameraView extends StatefulWidget {
-  const PoseCameraView({super.key});
+  const PoseCameraView({
+    super.key,
+    this.client = const BridgeClient(),
+    this.settings,
+    this.onConditionsChanged,
+  });
+
+  final BridgeClient client;
+
+  /// Bridgeの接続先。nullまたはhostが空の間はAポーズが成立しても送信しない。
+  final BridgeSettings? settings;
+
+  /// 監視画面の条件表示（全身/正面/直立/腕/静止）を更新するためのコールバック。
+  final void Function(APoseConditions conditions, APoseGateState gateState)?
+  onConditionsChanged;
 
   @override
   State<PoseCameraView> createState() => _PoseCameraViewState();
@@ -39,6 +59,14 @@ class _PoseCameraViewState extends State<PoseCameraView>
   int _cameraGeneration = 0;
   CameraLensDirection _lensDirection = CameraLensDirection.back;
   bool _hasFrontCamera = false;
+
+  final Stopwatch _clock = Stopwatch()..start();
+  final APoseStabilityTracker _stabilityTracker = APoseStabilityTracker();
+  final APoseGate _gate = APoseGate();
+
+  /// 正面を向けているか（静止を除く）。静止判定は検出精度の揺れで
+  /// 成立しにくいため、枠の色は正面判定だけで「いけそうか」を示す。
+  bool _looksGood = false;
 
   @override
   void initState() {
@@ -73,6 +101,7 @@ class _PoseCameraViewState extends State<PoseCameraView>
         _state = _CameraViewState.initializing;
         _errorMessage = null;
         _poseFrame = null;
+        _looksGood = false;
       });
     }
 
@@ -171,20 +200,79 @@ class _PoseCameraViewState extends State<PoseCameraView>
     try {
       final poses = await _poseDetector.processImage(converted.inputImage);
       if (!mounted || controller != _controller) return;
-      setState(() {
-        _poseFrame = poses.isEmpty
-            ? null
-            : PoseFrame(
-                pose: poses.first,
-                imageSize: converted.imageSize,
-                rotation: converted.rotation,
-                lensDirection: camera.lensDirection,
-              );
-      });
+      final frame = poses.isEmpty
+          ? null
+          : PoseFrame(
+              pose: poses.first,
+              imageSize: converted.imageSize,
+              rotation: converted.rotation,
+              lensDirection: camera.lensDirection,
+            );
+      setState(() => _poseFrame = frame);
+      _evaluateAPose(frame);
     } catch (_) {
       // A single malformed/dropped camera frame must not stop the stream.
     } finally {
       _isProcessing = false;
+    }
+  }
+
+  /// 毎フレームAポーズ条件を評価し、2秒安定したらBridgeへYaw Resetを
+  /// 要求する（camesura-spec.md 6.4）。
+  void _evaluateAPose(PoseFrame? frame) {
+    final timestamp = _clock.elapsed;
+    final points = frame == null ? null : extractRequiredPoints(frame);
+    final still = _stabilityTracker.addSample(
+      timestamp: timestamp,
+      points: points,
+    );
+    final conditions = evaluateAPoseConditions(
+      points: points,
+      imageSize: frame == null
+          ? Size.zero
+          : uprightImageSize(frame.imageSize, frame.rotation),
+      still: still,
+    );
+
+    final action = _gate.update(
+      allMet: conditions.allMet,
+      timestamp: timestamp,
+    );
+    widget.onConditionsChanged?.call(conditions, _gate.state);
+
+    final looksGood = conditions.frontFacing;
+    if (looksGood != _looksGood && mounted) {
+      setState(() => _looksGood = looksGood);
+    }
+
+    if (action == APoseGateAction.sendRequest) {
+      unawaited(_sendAutoReset(points));
+    }
+  }
+
+  Future<void> _sendAutoReset(PosePoints? points) async {
+    final settings = widget.settings;
+    final stableDuration =
+        _gate.lastStableDuration ?? APoseThresholds.holdDuration;
+    if (settings == null || settings.host.isEmpty) {
+      _gate.completeSend(success: false);
+      return;
+    }
+    var success = false;
+    try {
+      final response = await widget.client.requestReset(
+        kind: ResetKind.yaw,
+        host: settings.host,
+        deviceId: settings.deviceId,
+        pose: 'a_pose',
+        stableMs: stableDuration.inMilliseconds,
+        confidence: minRequiredLikelihood(points) ?? 0,
+      );
+      success = response.isOk;
+    } on BridgeException {
+      success = false;
+    } finally {
+      if (!_isDisposed) _gate.completeSend(success: success);
     }
   }
 
@@ -235,26 +323,39 @@ class _PoseCameraViewState extends State<PoseCameraView>
 
   @override
   Widget build(BuildContext context) {
+    final showGoodBorder = _state == _CameraViewState.streaming && _looksGood;
     return AspectRatio(
       key: const Key('pose-camera-view'),
       aspectRatio: 4 / 5,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: ColoredBox(
-          color: const Color(0xFF061F28),
-          child: switch (_state) {
-            _CameraViewState.initializing => const _CameraMessage(
-              icon: Icons.camera_alt_rounded,
-              message: 'カメラを起動しています…',
-              showProgress: true,
-            ),
-            _CameraViewState.permissionDenied ||
-            _CameraViewState.unavailable => _CameraError(
-              message: _errorMessage ?? 'カメラを起動できませんでした。',
-              onRetry: _initializeCamera,
-            ),
-            _CameraViewState.streaming => _buildPreview(),
-          },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: showGoodBorder
+                ? const Color(0xFF54E1A7)
+                : Colors.transparent,
+            width: 4,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: ColoredBox(
+            color: const Color(0xFF061F28),
+            child: switch (_state) {
+              _CameraViewState.initializing => const _CameraMessage(
+                icon: Icons.camera_alt_rounded,
+                message: 'カメラを起動しています…',
+                showProgress: true,
+              ),
+              _CameraViewState.permissionDenied ||
+              _CameraViewState.unavailable => _CameraError(
+                message: _errorMessage ?? 'カメラを起動できませんでした。',
+                onRetry: _initializeCamera,
+              ),
+              _CameraViewState.streaming => _buildPreview(),
+            },
+          ),
         ),
       ),
     );
