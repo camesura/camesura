@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/camesura/camesura/compare/v0.6.0...v0.7.0) (2026-09-17)
+
+
+### できるようになったこと
+
+* 判定の厳しさをスマホから調整し、静止のカウントダウンを表示できるようにしました ([38a6c76](https://github.com/camesura/camesura/commit/38a6c76cbe8e3c4589a2bfca9803d4b224cbf2ce))
+
 ## [0.6.0](https://github.com/camesura/camesura/compare/v0.5.0...v0.6.0) (2026-09-17)
 
 
