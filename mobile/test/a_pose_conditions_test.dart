@@ -155,7 +155,7 @@ void main() {
       final points = _override(
         _basePoints(),
         PoseLandmarkType.leftKnee,
-        const PosePoint(x: 750, y: 1000, likelihood: 0.9),
+        const PosePoint(x: 900, y: 850, likelihood: 0.9),
       );
       final result = evaluateAPoseConditions(
         points: points,
@@ -175,6 +175,37 @@ void main() {
           y: 1300,
           likelihood: 0.9,
         ),
+      );
+      final result = evaluateAPoseConditions(
+        points: points,
+        imageSize: _imageSize,
+        still: true,
+      );
+      expect(result.upright, isFalse);
+    });
+
+    test('膝が画角外の座標だと角度に関わらず不成立', () {
+      // 卓上設置などで太もも以下が画角外になったケースを想定。角度自体は
+      // 基準ポーズと同じ直線上に置き、画角外チェックだけが理由で
+      // 不成立になることを確認する。
+      final points = _override(
+        _basePoints(),
+        PoseLandmarkType.leftKnee,
+        const PosePoint(x: 600, y: 2000, likelihood: 0.9),
+      );
+      final result = evaluateAPoseConditions(
+        points: points,
+        imageSize: _imageSize,
+        still: true,
+      );
+      expect(result.upright, isFalse);
+    });
+
+    test('足首の信頼度が低いと不成立', () {
+      final points = _override(
+        _basePoints(),
+        PoseLandmarkType.leftAnkle,
+        const PosePoint(x: 600, y: 1600, likelihood: 0.5),
       );
       final result = evaluateAPoseConditions(
         points: points,
@@ -286,7 +317,7 @@ void main() {
       _override(
         _basePoints(),
         PoseLandmarkType.leftKnee,
-        const PosePoint(x: 750, y: 1000, likelihood: 0.9),
+        const PosePoint(x: 900, y: 850, likelihood: 0.9),
       ),
       PoseLandmarkType.leftElbow,
       const PosePoint(x: 750, y: 400, likelihood: 0.9),
@@ -300,6 +331,24 @@ void main() {
     expect(result.arms, isFalse);
     expect(result.frontFacing, isTrue);
     expect(result.still, isTrue);
+    expect(result.poseMatched, isTrue);
     expect(result.allMet, isTrue);
+  });
+
+  test('正面を満たしていなければallMetにならない', () {
+    final points = _override(
+      _basePoints(),
+      PoseLandmarkType.nose,
+      const PosePoint(x: 700, y: 300, likelihood: 0.9),
+    );
+    final result = evaluateAPoseConditions(
+      points: points,
+      imageSize: _imageSize,
+      still: true,
+    );
+    expect(result.frontFacing, isFalse);
+    expect(result.still, isTrue);
+    expect(result.poseMatched, isFalse);
+    expect(result.allMet, isFalse);
   });
 }

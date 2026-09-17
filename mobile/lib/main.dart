@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'bridge/bridge_reset_panel.dart';
 import 'bridge/bridge_settings.dart';
 import 'camera/pose_camera_view.dart';
-import 'pose/a_pose_conditions.dart';
+import 'theme/app_colors.dart';
 
 void main() {
   runApp(const CameSuraApp());
@@ -16,16 +16,18 @@ class CameSuraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const brandColor = Color(0xFF00AFC1);
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'かめすら',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: brandColor,
-          brightness: Brightness.light,
-        ),
+        colorScheme:
+            ColorScheme.fromSeed(
+              seedColor: AppColors.turtleGreen,
+              brightness: Brightness.light,
+            ).copyWith(
+              secondary: AppColors.slimeBlue,
+              tertiary: AppColors.slimeBlue,
+            ),
         scaffoldBackgroundColor: const Color(0xFFF3F7F8),
         useMaterial3: true,
       ),
@@ -92,7 +94,6 @@ class CalibrationPage extends StatefulWidget {
 
 class _CalibrationPageState extends State<CalibrationPage> {
   BridgeSettings? _settings;
-  APoseConditions _conditions = APoseConditions.none;
 
   @override
   void initState() {
@@ -124,32 +125,10 @@ class _CalibrationPageState extends State<CalibrationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  PoseCameraView(
-                    settings: _settings,
-                    onConditionsChanged: (conditions, _) {
-                      if (mounted) setState(() => _conditions = conditions);
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    '姿勢チェック',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF082C36),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _ConditionChip(label: '全身', met: _conditions.fullBody),
-                      _ConditionChip(label: '正面', met: _conditions.frontFacing),
-                      _ConditionChip(label: '直立', met: _conditions.upright),
-                      _ConditionChip(label: '腕', met: _conditions.arms),
-                      _ConditionChip(label: '静止', met: _conditions.still),
-                    ],
-                  ),
+                  // 姿勢チェックの条件は正面のみで、成立するとPoseCameraView
+                  // 内部でカメラ枠が緑に光る。ここでは条件を文字やチップで
+                  // 明示しない。
+                  PoseCameraView(settings: _settings),
                   const SizedBox(height: 18),
                   if (_settings != null) const BridgeResetPanel(),
                 ],
@@ -157,34 +136,6 @@ class _CalibrationPageState extends State<CalibrationPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ConditionChip extends StatelessWidget {
-  const _ConditionChip({required this.label, required this.met});
-
-  final String label;
-  final bool met;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = met ? const Color(0xFF007C4F) : const Color(0xFF718A90);
-    return Chip(
-      avatar: Icon(
-        met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-        size: 18,
-        color: color,
-      ),
-      label: Text(label),
-      side: BorderSide(
-        color: met ? const Color(0xFF54E1A7) : const Color(0xFFD6E3E5),
-      ),
-      backgroundColor: met ? const Color(0xFFE8F8F0) : Colors.white,
-      labelStyle: TextStyle(
-        color: const Color(0xFF284950),
-        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -200,15 +151,13 @@ class _BrandHeader extends StatelessWidget {
         Container(
           width: 48,
           height: 48,
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: const Color(0xFF082C36),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFFDDE8EA)),
           ),
-          child: const Icon(
-            Icons.videocam_rounded,
-            color: Color(0xFF54E1D3),
-            size: 28,
-          ),
+          child: Image.asset('assets/icon/icon_foreground.png'),
         ),
         const SizedBox(width: 13),
         Column(
@@ -248,7 +197,7 @@ class _HeroPanel extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0B3540), Color(0xFF061F28)],
+          colors: [AppColors.turtleGreenDark, AppColors.slimeBlueDark],
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: const [
@@ -330,9 +279,7 @@ class _FlowStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = highlighted
-        ? const Color(0xFF54E1A7)
-        : const Color(0xFF54D7E1);
+    final color = highlighted ? AppColors.turtleGreen : AppColors.slimeBlue;
 
     return Column(
       children: [
@@ -404,7 +351,7 @@ class _BeforeAfterStrip extends StatelessWidget {
           Expanded(
             child: _PoseState(
               icon: Icons.check_circle_rounded,
-              color: Color(0xFF54E1A7),
+              color: AppColors.turtleGreen,
               title: '正しくリセット',
               isGood: true,
             ),
@@ -475,7 +422,7 @@ class _PrivacyNote extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(Icons.phonelink_lock_rounded, color: Color(0xFF007C89)),
+          Icon(Icons.phonelink_lock_rounded, color: AppColors.slimeBlue),
           SizedBox(width: 12),
           Expanded(
             child: Text(

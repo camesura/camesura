@@ -4,6 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
+import '../theme/app_colors.dart';
+
 const double minimumLandmarkLikelihood = 0.5;
 
 class PoseFrame {
@@ -58,8 +60,8 @@ class PoseSkeletonPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final leftPaint = _linePaint(const Color(0xFF54E1A7));
-    final rightPaint = _linePaint(const Color(0xFF54D7E1));
+    final leftPaint = _linePaint(AppColors.turtleGreen);
+    final rightPaint = _linePaint(AppColors.slimeBlue);
     final centerPaint = _linePaint(Colors.white.withValues(alpha: 0.92));
     final pointPaint = Paint()
       ..style = PaintingStyle.fill

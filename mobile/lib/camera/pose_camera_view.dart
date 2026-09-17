@@ -12,6 +12,7 @@ import '../pose/a_pose_gate.dart';
 import '../pose/a_pose_points.dart';
 import '../pose/a_pose_stability_tracker.dart';
 import '../pose/pose_skeleton_painter.dart';
+import '../theme/app_colors.dart';
 import 'camera_image_converter.dart';
 
 enum _CameraViewState { initializing, streaming, permissionDenied, unavailable }
@@ -64,9 +65,9 @@ class _PoseCameraViewState extends State<PoseCameraView>
   final APoseStabilityTracker _stabilityTracker = APoseStabilityTracker();
   final APoseGate _gate = APoseGate();
 
-  /// 正面を向けているか（静止を除く）。静止判定は検出精度の揺れで
-  /// 成立しにくいため、枠の色は正面判定だけで「いけそうか」を示す。
-  bool _looksGood = false;
+  /// ポーズ自体が要件を満たしているか（静止を除く）。これが成立すると
+  /// 枠を緑にし、続けて静止するよう案内する。
+  bool _poseMatched = false;
 
   @override
   void initState() {
@@ -101,7 +102,7 @@ class _PoseCameraViewState extends State<PoseCameraView>
         _state = _CameraViewState.initializing;
         _errorMessage = null;
         _poseFrame = null;
-        _looksGood = false;
+        _poseMatched = false;
       });
     }
 
@@ -240,9 +241,9 @@ class _PoseCameraViewState extends State<PoseCameraView>
     );
     widget.onConditionsChanged?.call(conditions, _gate.state);
 
-    final looksGood = conditions.frontFacing;
-    if (looksGood != _looksGood && mounted) {
-      setState(() => _looksGood = looksGood);
+    final poseMatched = conditions.poseMatched;
+    if (poseMatched != _poseMatched && mounted) {
+      setState(() => _poseMatched = poseMatched);
     }
 
     if (action == APoseGateAction.sendRequest) {
@@ -323,7 +324,7 @@ class _PoseCameraViewState extends State<PoseCameraView>
 
   @override
   Widget build(BuildContext context) {
-    final showGoodBorder = _state == _CameraViewState.streaming && _looksGood;
+    final showGoodBorder = _state == _CameraViewState.streaming && _poseMatched;
     return AspectRatio(
       key: const Key('pose-camera-view'),
       aspectRatio: 4 / 5,
@@ -332,9 +333,7 @@ class _PoseCameraViewState extends State<PoseCameraView>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: showGoodBorder
-                ? const Color(0xFF54E1A7)
-                : Colors.transparent,
+            color: showGoodBorder ? AppColors.turtleGreen : Colors.transparent,
             width: 4,
           ),
         ),
@@ -359,6 +358,14 @@ class _PoseCameraViewState extends State<PoseCameraView>
         ),
       ),
     );
+  }
+
+  /// プレビュー下部の案内文。ポーズが未検出/未成立の間は構え方を、
+  /// ポーズが成立した後は静止するよう案内する。
+  String get _guidanceMessage {
+    if (_poseFrame == null) return '全身が画面に入る位置に立ってください';
+    if (!_poseMatched) return '正面を向いてください';
+    return 'そのまま静止してください';
   }
 
   Widget _buildPreview() {
@@ -414,14 +421,14 @@ class _PoseCameraViewState extends State<PoseCameraView>
                 right: 14,
                 child: _CameraSwitchButton(onPressed: _switchCamera),
               ),
-            const Positioned(
+            Positioned(
               left: 16,
               right: 16,
               bottom: 14,
               child: Text(
-                '全身が画面に入る位置に立ってください',
+                _guidanceMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                   shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
@@ -442,7 +449,7 @@ class _DetectionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = detected ? const Color(0xFF54E1A7) : const Color(0xFFFFD166);
+    final color = detected ? AppColors.turtleGreen : const Color(0xFFFFD166);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
@@ -509,7 +516,7 @@ class _CameraError extends StatelessWidget {
         label: const Text('もう一度試す'),
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFF54D7E1)),
+          side: const BorderSide(color: AppColors.slimeBlue),
         ),
       ),
     );
@@ -537,7 +544,7 @@ class _CameraMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: const Color(0xFF54D7E1), size: 52),
+            Icon(icon, color: AppColors.slimeBlue, size: 52),
             const SizedBox(height: 16),
             Text(
               message,
@@ -555,7 +562,7 @@ class _CameraMessage extends StatelessWidget {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: Color(0xFF54E1A7),
+                  color: AppColors.turtleGreen,
                 ),
               ),
             ],

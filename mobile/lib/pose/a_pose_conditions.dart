@@ -10,8 +10,8 @@ import 'a_pose_points.dart';
 class APoseThresholds {
   static const double minLikelihood = 0.6;
   static const double frontTiltRatio = 0.15;
-  static const double uprightMinAngleDeg = 145;
-  static const double uprightMaxTiltDeg = 25;
+  static const double uprightMinAngleDeg = 100;
+  static const double uprightMaxTiltDeg = 45;
   static const double armMinAngleDeg = 140;
   static const double armOutwardMinDeg = 15;
   static const double armOutwardMaxDeg = 65;
@@ -46,11 +46,15 @@ class APoseConditions {
   final bool arms;
   final bool still;
 
+  /// 「ポーズ自体が要件を満たしているか」（静止を除く）。この条件が
+  /// 満たされた時点でプレビュー枠を緑にし、「静止してください」と案内する。
+  /// 直立は検出精度（卓上設置で下半身が画角外になる等）に対して厳しすぎる
+  /// ため、一旦ゲートから外す。全身/直立/腕は引き続き画面表示の参考情報。
+  bool get poseMatched => frontFacing;
+
   /// キャリブレーション（自動Yaw Reset送信）の実際のゲート条件。
-  /// 全身/直立/腕は検出精度に左右されやすく厳しすぎるため要求せず、
-  /// 「正面を向いて静止している」ことだけを条件にする。
-  /// fullBody/upright/armsは引き続き画面表示の参考情報として計算する。
-  bool get allMet => frontFacing && still;
+  /// ポーズが要件を満たした状態のまま静止していることを条件にする。
+  bool get allMet => poseMatched && still;
 }
 
 /// [points]と正立画像サイズ[imageSize]からAポーズ条件を判定する。
@@ -65,10 +69,20 @@ APoseConditions evaluateAPoseConditions({
   return APoseConditions(
     fullBody: _checkFullBody(points, imageSize),
     frontFacing: _checkFrontFacing(points),
-    upright: _checkUpright(points),
+    upright: _checkUpright(points, imageSize),
     arms: _checkArms(points),
     still: still,
   );
+}
+
+/// 信頼度が十分にあり、画像範囲内にある点か。机の上に固定して足元が
+/// 画角外になる場合など、ML Kitが低信頼度・画面外の推測座標を返す点を
+/// そのまま角度計算に使わないためのガード。
+bool _isValidPoint(PosePoint point, Size imageSize) {
+  if (point.likelihood < APoseThresholds.minLikelihood) return false;
+  if (point.x < 0 || point.x > imageSize.width) return false;
+  if (point.y < 0 || point.y > imageSize.height) return false;
+  return true;
 }
 
 bool _checkFullBody(PosePoints points, Size imageSize) {
@@ -76,10 +90,7 @@ bool _checkFullBody(PosePoints points, Size imageSize) {
   // 影響させない。必須12点だけを確認する。
   for (final type in requiredLandmarkTypes) {
     final point = points[type];
-    if (point == null) return false;
-    if (point.likelihood < APoseThresholds.minLikelihood) return false;
-    if (point.x < 0 || point.x > imageSize.width) return false;
-    if (point.y < 0 || point.y > imageSize.height) return false;
+    if (point == null || !_isValidPoint(point, imageSize)) return false;
   }
   return true;
 }
@@ -113,7 +124,7 @@ bool _checkFrontFacing(PosePoints points) {
   return true;
 }
 
-bool _checkUpright(PosePoints points) {
+bool _checkUpright(PosePoints points, Size imageSize) {
   final leftHip = points[PoseLandmarkType.leftHip]!;
   final rightHip = points[PoseLandmarkType.rightHip]!;
   final leftKnee = points[PoseLandmarkType.leftKnee]!;
@@ -122,6 +133,22 @@ bool _checkUpright(PosePoints points) {
   final rightAnkle = points[PoseLandmarkType.rightAnkle]!;
   final leftShoulder = points[PoseLandmarkType.leftShoulder]!;
   final rightShoulder = points[PoseLandmarkType.rightShoulder]!;
+
+  // 卓上設置などで太もも・足首が画角外になると、ML Kitは低信頼度・
+  // 画面外の推測座標を返す。その座標で角度を計算して見かけ上
+  // 「直立」になってしまうのを防ぐ。
+  for (final point in [
+    leftHip,
+    rightHip,
+    leftKnee,
+    rightKnee,
+    leftAnkle,
+    rightAnkle,
+    leftShoulder,
+    rightShoulder,
+  ]) {
+    if (!_isValidPoint(point, imageSize)) return false;
+  }
 
   if (_angleAtVertex(leftHip, leftKnee, leftAnkle) <
       APoseThresholds.uprightMinAngleDeg) {

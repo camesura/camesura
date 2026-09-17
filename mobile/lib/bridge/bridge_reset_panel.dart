@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
 import 'bridge_client.dart';
 import 'bridge_discovery.dart';
 import 'bridge_settings.dart';
@@ -326,7 +327,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: _resetPhase == _ResetPhase.finished
-                    ? const Color(0xFF007C4F)
+                    ? AppColors.turtleGreenDark
                     : const Color(0xFFB3261E),
                 fontWeight: FontWeight.w700,
               ),
@@ -350,7 +351,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
 
   Color get _bridgeColor => switch (_bridgeState) {
     _BridgeState.unchecked => const Color(0xFF718A90),
-    _BridgeState.available => const Color(0xFF007C4F),
+    _BridgeState.available => AppColors.turtleGreenDark,
     _BridgeState.unreachable => const Color(0xFFB3261E),
   };
 }
