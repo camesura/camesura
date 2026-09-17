@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/camesura/camesura/compare/v0.3.1...v0.4.0) (2026-09-17)
+
+
+### Features
+
+* スマホからGo Bridge経由でSlimeVRのリセットを実行 ([#4](https://github.com/camesura/camesura/issues/4)) ([2e9f494](https://github.com/camesura/camesura/commit/2e9f49452719428a4424633ebfad35af2437bb7a))
+
 ## [0.3.1](https://github.com/camesura/camesura/compare/v0.3.0...v0.3.1) (2026-09-16)
 
 
