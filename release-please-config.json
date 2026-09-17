@@ -1,10 +1,23 @@
 {
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "packages": {
     "mobile": {
       "release-type": "dart",
       "package-name": "camesura",
       "include-component-in-tag": false,
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "changelog-sections": [
+        {
+          "type": "feat",
+          "section": "できるようになったこと"
+        },
+        {
+          "type": "fix",
+          "section": "修正"
+        }
+      ],
+      "pull-request-header": "このリリースPRは Release Please により自動生成されています。公開内容が日本語かつユーザー視点になっていることを確認してください。",
+      "pull-request-footer": "このPRをマージすると、タグと GitHub Release が作成され、Android APK が添付されます。"
     }
   }
 }

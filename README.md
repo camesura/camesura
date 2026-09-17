@@ -123,7 +123,35 @@ mainへのコミットは[Conventional Commits](https://www.conventionalcommits.
 - `feat:` は minor（0.2.0 → 0.3.0）
 - `!` / `BREAKING CHANGE` は major
 
-mainへpushするとGitHub Actionsがリリース候補PRを自動で開きます。このPRはpubspec.yamlのバージョンとCHANGELOG.md、`.release-please-manifest.json`を更新するもので、マージするとバージョンタグ`v*`とGitHub Releaseが作成され、同じmise環境でビルドしたAPKとSHA-256チェックサムが自動で添付されます。タグの手動pushは不要です。
+#### リリースノートのルール
+
+`feat:` / `fix:` のコミット件名が、そのままリリースノートの変更点になります。mainに入るコミット件名（squash mergeする場合はPRタイトル）は、次のルールで書きます。
+
+- 必ず日本語で書く。
+- 実装内容ではなく、リリース後にユーザーができるようになったことや、改善された体験を書く。
+- 1件につき1つの変更点を、プロダクトバックログの完了項目として読める粒度で書く。
+- `feat:` はユーザーに新しい価値を提供する変更、`fix:` はユーザーが遭遇する不具合の修正に使う。
+- 内部のリファクタリング、テスト、CI、ドキュメントなどは `refactor:`、`test:`、`ci:`、`docs:`、`chore:` を使い、ユーザー向けリリースノートには載せない。
+
+```text
+# 良い例
+feat: Aポーズを取るとトラッキングを開始できる
+fix: Bridge接続中もポーズ検出が滑らかに動くように修正
+
+# 避ける例
+feat: Aポーズ判定クラスを追加
+fix: タイマーのライフサイクル競合を修正
+```
+
+#### リリースの流れ
+
+1. 通常の変更PRをマージする。mainに入る `feat:` / `fix:` のコミット件名は、上記ルールに従う。
+2. mainへのpushを契機に、GitHub Actionsがリリース候補PRを作成または更新する。
+3. リリース候補PRの `mobile/CHANGELOG.md` を確認し、すべての変更点が日本語かつユーザー視点になっていることを確認する。ルールに合わない場合は、元のPRタイトルまたはコミット件名を次回から直すだけで済ませず、公開前のリリースノートも日本語のユーザー向け表現へ整える。
+4. リリースするタイミングでリリース候補PRをマージする。
+5. バージョンタグ `v*` と GitHub Release が自動作成され、同じmise環境でビルドしたAPKとSHA-256チェックサムが自動で添付される。タグの手動pushは不要。
+
+リリース候補PRはpubspec.yamlのバージョンとCHANGELOG.md、`.release-please-manifest.json`を更新します。
 
 pubspec.yamlの`+ビルド番号`（AndroidのversionCode）はリリースのたびに自動でインクリメントされます。
 
