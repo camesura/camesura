@@ -1,14 +1,8 @@
 # Communication Protocol
 
-スマートフォンと Bridge 間の通信仕様を記録する文書です。
+通信仕様の正本は[camesura-spec.md](../camesura-spec.md)とする。
 
-## Status
+- Mobile → Bridge: UDP / UTF-8 JSON（仕様書7章）
+- Bridge → SlimeVR Server: WebSocket / SolarXR Protocol FlatBuffers（仕様書8章）
 
-未策定です。実装開始前に、次の項目を決定します。
-
-- トランスポート方式
-- メッセージ形式とバージョン管理
-- センサー値の座標系、単位、精度
-- タイムスタンプと同期方式
-- 接続、再接続、エラー処理
-- 認証と暗号化
+ここへ同じフィールド定義を複製しない。通信仕様を変更するときは仕様書、実装、テスト用fixtureを同じ変更で更新する。
