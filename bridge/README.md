@@ -18,7 +18,7 @@ SlimeVR Adapter（実際にSlimeVRへリセットを送る場合）:
 cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter slimevr
 ```
 
-起動ログの`enter this address in the mobile app ip=...`に表示されたIPアドレスを、アプリの補正準備画面の「IPアドレスを設定」へ入力します。スマートフォンとMacは同じLANに接続してください（スマホのホットスポットにMacを繋いでいる場合も同様に動作します）。
+アプリは補正準備画面を開くと同じLAN内のBridgeを自動で探します（虫眼鏡ボタンで再検索）。見つからない場合は、起動ログの`manual address ip=...`に表示されたIPアドレスを「IPアドレスを設定」へ入力します。スマートフォンとMacは同じLANに接続してください（スマホのホットスポットにMacを繋いでいる場合も同様に動作します）。
 
 初回起動時にmacOSのファイアウォールが受信接続の許可を求めた場合は「許可」を選びます。
 
@@ -34,6 +34,7 @@ cd bridge && go run ./cmd/camesura-bridge -listen :39500 -adapter slimevr
 
 ```sh
 echo '{"version":1,"type":"ping","request_id":"test"}' | nc -u -w1 127.0.0.1 39500
+echo '{"version":1,"type":"discover","request_id":"test"}' | nc -u -w1 127.0.0.1 39500
 ```
 
 ## SolarXR ProtocolのGoコードを再生成する

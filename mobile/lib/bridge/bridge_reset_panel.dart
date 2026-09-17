@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'bridge_client.dart';
+import 'bridge_discovery.dart';
 import 'bridge_settings.dart';
 
 enum _BridgeState { unchecked, available, unreachable }
@@ -11,9 +12,19 @@ enum _ResetPhase { idle, countdown, sending, finished, failed }
 
 /// Bridge connection settings and manual Full/Yaw Reset buttons with countdown.
 class BridgeResetPanel extends StatefulWidget {
-  const BridgeResetPanel({super.key, this.client = const BridgeClient()});
+  const BridgeResetPanel({
+    super.key,
+    this.client = const BridgeClient(),
+    this.discovery = const BridgeDiscovery(),
+    this.autoConnect = true,
+  });
 
   final BridgeClient client;
+  final BridgeDiscovery discovery;
+
+  /// Checks the saved Bridge on open and searches the LAN when it is missing
+  /// or unreachable.
+  final bool autoConnect;
 
   @override
   State<BridgeResetPanel> createState() => _BridgeResetPanelState();
@@ -27,6 +38,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
   String? _adapter;
   String? _resultMessage;
   bool _isChecking = false;
+  bool _isSearching = false;
   int _secondsLeft = 0;
   Timer? _countdownTimer;
 
@@ -40,6 +52,60 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     final settings = await BridgeSettings.load();
     if (!mounted) return;
     setState(() => _settings = settings);
+    if (!widget.autoConnect) return;
+    if (settings.host.isNotEmpty) await _checkConnection();
+    if (mounted && _bridgeState != _BridgeState.available) {
+      await _searchBridges(interactive: false);
+    }
+  }
+
+  /// Finds Bridges on the LAN. One result is selected automatically; several
+  /// are offered in a list. [interactive] also reports "not found".
+  Future<void> _searchBridges({required bool interactive}) async {
+    final settings = _settings;
+    if (settings == null || _isSearching) return;
+    setState(() => _isSearching = true);
+    DiscoveryResult result;
+    try {
+      result = await widget.discovery.discover();
+    } on Exception {
+      result = const DiscoveryResult(bridges: [], networks: []);
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+    if (!mounted) return;
+
+    final bridges = result.bridges;
+    DiscoveredBridge? selected;
+    if (bridges.length == 1) {
+      selected = bridges.single;
+    } else if (bridges.length > 1) {
+      selected = await showDialog<DiscoveredBridge>(
+        context: context,
+        builder: (_) => _BridgePickerDialog(bridges: bridges),
+      );
+    } else if (interactive) {
+      final searched = result.networks.isEmpty
+          ? '探索できるネットワークがありません'
+          : '探索: ${result.networks.join(', ')}';
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Bridgeが見つかりません（$searched）。'
+            'PCでBridgeを起動し、同じWi-Fiに接続してください',
+          ),
+        ),
+      );
+    }
+    if (selected == null || !mounted) return;
+
+    final updated = await settings.withHost(selected.host);
+    if (!mounted) return;
+    setState(() {
+      _settings = updated;
+      _bridgeState = _BridgeState.available;
+      _adapter = selected!.adapter;
+    });
   }
 
   @override
@@ -89,7 +155,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     final settings = _settings;
     if (settings == null) return;
     if (settings.host.isEmpty) {
-      unawaited(_editHost());
+      unawaited(_searchBridges(interactive: true));
       return;
     }
     _countdownTimer?.cancel();
@@ -190,7 +256,11 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Bridge  $_bridgeLabel',
+                      _isSearching
+                          ? 'Bridge  探しています…'
+                          : _isChecking
+                          ? 'Bridge  確認中…'
+                          : 'Bridge  $_bridgeLabel',
                       style: const TextStyle(
                         color: Color(0xFF284950),
                         fontWeight: FontWeight.w700,
@@ -198,7 +268,7 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
                     ),
                     Text(
                       host.isEmpty
-                          ? 'IPアドレス未設定'
+                          ? '未選択'
                           : '$host:$bridgeDefaultPort'
                                 '${_adapter == null ? '' : '（$_adapter）'}',
                       style: const TextStyle(color: Color(0xFF557177)),
@@ -207,17 +277,17 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
                 ),
               ),
               IconButton(
-                tooltip: '接続確認',
-                onPressed: host.isEmpty || _isChecking
+                tooltip: 'Bridgeを探す',
+                onPressed: settings == null || busy || _isSearching
                     ? null
-                    : _checkConnection,
-                icon: _isChecking
+                    : () => _searchBridges(interactive: true),
+                icon: _isSearching
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.wifi_find_rounded),
+                    : const Icon(Icons.search_rounded),
               ),
               IconButton(
                 tooltip: 'IPアドレスを設定',
@@ -286,6 +356,30 @@ class _BridgeResetPanelState extends State<BridgeResetPanel> {
     _BridgeState.available => const Color(0xFF007C4F),
     _BridgeState.unreachable => const Color(0xFFB3261E),
   };
+}
+
+class _BridgePickerDialog extends StatelessWidget {
+  const _BridgePickerDialog({required this.bridges});
+
+  final List<DiscoveredBridge> bridges;
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      title: const Text('Bridgeを選択'),
+      children: [
+        for (final bridge in bridges)
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop(bridge),
+            child: ListTile(
+              leading: const Icon(Icons.computer_rounded),
+              title: Text(bridge.name),
+              subtitle: Text(bridge.host),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _HostDialog extends StatefulWidget {

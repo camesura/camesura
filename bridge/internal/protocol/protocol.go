@@ -12,6 +12,8 @@ const (
 	TypeResetResult  = "reset_result"
 	TypePing         = "ping"
 	TypePong         = "pong"
+	TypeDiscover     = "discover"
+	TypeAnnounce     = "announce"
 
 	ResetYaw  = "yaw"
 	ResetFull = "full"
@@ -35,7 +37,7 @@ const (
 )
 
 // Request is a message sent from the mobile app.
-// ping uses only Version, Type and RequestID.
+// ping and discover use only Version, Type and RequestID.
 type Request struct {
 	Version    int      `json:"version"`
 	Type       string   `json:"type"`
@@ -56,6 +58,8 @@ type Result struct {
 	Code      string `json:"code"`
 	Adapter   string `json:"adapter"`
 	Message   string `json:"message"`
+	// Name is the Bridge host name, set on pong and announce.
+	Name string `json:"name,omitempty"`
 }
 
 // ValidationError carries the reset_result code for a rejected request.

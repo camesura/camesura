@@ -21,6 +21,8 @@ const (
 )
 
 type Config struct {
+	// Name identifies this Bridge in discovery replies (usually the host name).
+	Name         string
 	Adapter      resetadapter.ResetAdapter
 	Logger       *slog.Logger
 	Cooldown     time.Duration
@@ -99,10 +101,19 @@ func (s *Server) handle(ctx context.Context, data []byte, addr net.Addr) {
 		s.cfg.Logger.Warn("dropped malformed datagram", "from", addr, "error", err)
 		return
 	}
-	if req.Type == protocol.TypePing && req.Version == protocol.Version {
-		s.cfg.Logger.Info("ping", "from", addr)
-		s.send(s.result(protocol.TypePong, req.RequestID, nil, protocol.CodeBridgeReady, "Bridge is ready"), addr)
-		return
+	if req.Version == protocol.Version {
+		switch req.Type {
+		case protocol.TypePing, protocol.TypeDiscover:
+			replyType := protocol.TypePong
+			if req.Type == protocol.TypeDiscover {
+				replyType = protocol.TypeAnnounce
+			}
+			s.cfg.Logger.Info(req.Type, "from", addr)
+			res := s.result(replyType, req.RequestID, nil, protocol.CodeBridgeReady, "Bridge is ready")
+			res.Name = s.cfg.Name
+			s.send(res, addr)
+			return
+		}
 	}
 	s.handleReset(ctx, req, addr)
 }

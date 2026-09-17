@@ -25,7 +25,7 @@ void main() {
 
     expect(find.text('補正準備'), findsOneWidget);
     expect(find.byKey(const Key('pose-camera-view')), findsOneWidget);
-    expect(find.text('Bridge  接続未確認'), findsOneWidget);
+    expect(find.byTooltip('Bridgeを探す'), findsOneWidget);
     expect(find.text('リセット'), findsOneWidget);
     expect(find.text('Yawリセット'), findsOneWidget);
   });

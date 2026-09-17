@@ -17,7 +17,7 @@
 
 1. PCでSlimeVR ServerとCameSura Bridgeを起動する
 2. SlimeVRの通常セットアップを完了し、少なくとも一度Full Resetする
-3. スマートフォンでBridgeのIPアドレスを設定する
+3. スマートフォンでBridgeを自動検出する（見つからない場合はIPアドレスを手入力する）
 4. 全身が映る位置へスマートフォンを縦向きで固定する
 5. 監視画面を開始する
 
@@ -56,7 +56,7 @@ Yaw Resetは、SlimeVR上でFull Resetが済んだセッションの方位ずれ
 - インターネット経由の接続
 - アカウント、クラウド保存、映像保存
 - VRChatとの直接連携
-- Bridgeの自動探索とQR接続
+- QR接続
 
 ## 4. システム構成
 
@@ -186,7 +186,7 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 - Encoding: UTF-8 JSON object
 - 最大データグラム: 4 KiB
 - Protocol version: `1`
-- 接続先IPは初回設定で手入力する
+- 接続先は7.4の自動検出で選ぶ。見つからない場合はIPを手入力する
 - 要求を同じ`request_id`で3回、100ms間隔で送る
 - 送信用socketで2秒間応答を待つ
 
@@ -236,6 +236,16 @@ AポーズはCameSuraが誤作動を避けるための明示ジェスチャー�
 接続確認には`{"version": 1, "type": "ping", "request_id": "..."}`を送り、Bridgeは`type = "pong"`、`code = "bridge_ready"`の結果形式で応答する。
 
 Bridgeは同じ`request_id`の再受信にAdapterを再実行せず、キャッシュした同じ結果を送信元へ返す。壊れたJSONやrequest_idを特定できない要求には応答せず、警告ログだけを残す。
+
+### 7.4 Bridgeの自動検出
+
+- アプリは`{"version": 1, "type": "discover", "request_id": "..."}`を送る
+- 送信先は`255.255.255.255:39500`へのブロードキャストと、端末自身の各IPv4アドレスが属する/24内の全ホストへのユニキャスト
+  - iOSはブロードキャストにmulticast entitlementが必要なため、ユニキャスト探索を必須とする
+  - 携帯回線・VPNのインターフェースは探索対象から外す
+- Bridgeは`type = "announce"`、`name`（ホスト名）付きで送信元へ応答する
+- 1件ならそのBridgeを自動選択し、複数なら一覧から選ばせる
+- 監視画面を開いたとき、保存済みBridgeに応答がなければ自動で再検出する
 
 ## 8. Go BridgeとSlimeVR
 

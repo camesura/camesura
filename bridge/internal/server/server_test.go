@@ -55,6 +55,7 @@ func startServer(t *testing.T, adapter resetadapter.ResetAdapter, clock *fakeClo
 		t.Fatal(err)
 	}
 	srv := New(conn, Config{
+		Name:    "test-bridge",
 		Adapter: adapter,
 		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Now:     clock.Now,
@@ -241,5 +242,20 @@ func TestFullResetIsPassedToAdapter(t *testing.T) {
 	}
 	if _, ok := adapter.kinds.Load(resetadapter.KindFull); !ok {
 		t.Fatal("adapter did not receive a full reset")
+	}
+}
+
+func TestDiscoverReturnsAnnounce(t *testing.T) {
+	adapter := &countingAdapter{}
+	addr := startServer(t, adapter, &fakeClock{now: time.Unix(0, 0)})
+	client := newClient(t)
+
+	sendJSON(t, client, addr, map[string]any{"version": 1, "type": "discover", "request_id": "d1"})
+	res, ok := receive(t, client)
+	if !ok || res.Type != protocol.TypeAnnounce || res.RequestID != "d1" || res.Name != "test-bridge" {
+		t.Fatalf("unexpected announce: %+v (received=%v)", res, ok)
+	}
+	if got := adapter.calls.Load(); got != 0 {
+		t.Fatalf("discover must not reset, adapter called %d times", got)
 	}
 }

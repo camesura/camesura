@@ -56,10 +56,12 @@ func run(logger *slog.Logger, listen, adapterName, slimevrURL string, cooldown t
 	port := conn.LocalAddr().(*net.UDPAddr).Port
 	logger.Info("CameSura Bridge started", "listen", conn.LocalAddr(), "adapter", adapter.Name())
 	for _, ip := range lanIPv4s() {
-		logger.Info("enter this address in the mobile app", "ip", ip, "port", port)
+		logger.Info("the mobile app finds this Bridge automatically; manual address", "ip", ip, "port", port)
 	}
 
-	srv := server.New(conn, server.Config{Adapter: adapter, Logger: logger, Cooldown: cooldown})
+	name, _ := os.Hostname()
+	name = strings.TrimSuffix(name, ".local")
+	srv := server.New(conn, server.Config{Name: name, Adapter: adapter, Logger: logger, Cooldown: cooldown})
 	return srv.Serve(ctx)
 }
 
