@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/camesura/camesura/compare/v0.5.0...v0.6.0) (2026-09-17)
+
+
+### できるようになったこと
+
+* 新しいアイコンと色分けされた案内で補正操作を迷わず進められる ([42da6e3](https://github.com/camesura/camesura/commit/42da6e37d2f6da924b3d80d50b0261f3f7923158))
+
 ## [0.5.0](https://github.com/camesura/camesura/compare/v0.4.0...v0.5.0) (2026-09-17)
 
 
